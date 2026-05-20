@@ -1,0 +1,161 @@
+# =========================
+# OS / editor
+# =========================
+
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# =========================
+# Logs
+# =========================
+
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# Environment / secrets
+# =========================
+
+.env
+.env.*
+!.env.example
+
+appsettings.Local.json
+appsettings.*.Local.json
+
+# Optional: uncomment if you want to keep development settings out of git
+# backend/**/appsettings.Development.json
+
+# =========================
+# Angular / Node
+# =========================
+
+frontend/**/node_modules/
+frontend/**/.angular/cache/
+frontend/**/dist/
+frontend/**/out-tsc/
+frontend/**/.ng_build/
+frontend/**/coverage/
+
+# Angular service worker / PWA build artifacts
+frontend/**/ngsw.json
+frontend/**/ngsw-worker.js
+frontend/**/safety-worker.js
+frontend/**/worker-basic.min.js
+
+# Package manager caches
+.pnpm-store/
+.yarn/
+.npm/
+
+# Keep package lock files tracked
+!frontend/**/package-lock.json
+!frontend/**/pnpm-lock.yaml
+!frontend/**/yarn.lock
+
+# =========================
+# .NET / ASP.NET Core
+# =========================
+
+backend/**/bin/
+backend/**/obj/
+backend/**/TestResults/
+backend/**/coverage/
+backend/**/artifacts/
+
+# Rider / ReSharper
+_ReSharper*/
+*.DotSettings.user
+
+# Build output
+*.dll
+*.exe
+*.pdb
+*.cache
+*.ilk
+*.meta
+*.iobj
+*.ipdb
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/packages/
+packages/
+
+# User-specific project files
+*.rsuser
+*.user
+*.suo
+
+# ASP.NET generated files
+backend/**/wwwroot/lib/
+
+# =========================
+# EF Core / database
+# =========================
+
+# Usually do NOT ignore migrations.
+# EF migrations should normally be committed.
+# backend/**/Migrations/
+
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# =========================
+# Docker
+# =========================
+
+# Do not ignore docker-compose.yml
+# Do not ignore Dockerfile
+
+docker-compose.override.yml
+
+# Local mounted volumes, if you ever create them manually
+data/
+postgres-data/
+.pgdata/
+
+# =========================
+# Certificates
+# =========================
+
+*.pfx
+*.p12
+*.pem
+*.key
+*.crt
+
+# =========================
+# Temporary files
+# =========================
+
+tmp/
+temp/
+.cache/
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
