@@ -7,6 +7,10 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
+.vs/
+**/bin/
+**/obj/
+
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json

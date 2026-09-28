@@ -1,0 +1,25 @@
+{
+  "name": "hallen",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run api\" \"npm run web\"",
+
+    "api": "dotnet run --project backend/Hallen.Api --launch-profile https",
+    "api:watch": "dotnet watch --project backend/Hallen.Api run --launch-profile https",
+
+    "web": "npm --prefix frontend/hallen-app run dev",
+    "web:build": "npm --prefix frontend/hallen-app run build",
+    "web:preview": "npm --prefix frontend/hallen-app run preview",
+    "web:pwa": "npm --prefix frontend/hallen-app run build && npm --prefix frontend/hallen-app run preview",
+
+    "build": "dotnet build backend && npm --prefix frontend/hallen-app run build",
+    "restore": "dotnet restore backend && npm --prefix frontend/hallen-app install",
+
+    "db:add": "node scripts/add-migration.js",
+    "db:update": "dotnet ef database update --project backend/Hallen.Database --startup-project backend/Hallen.Api",
+    "db:remove": "dotnet ef migrations remove --project backend/Hallen.Database --startup-project backend/Hallen.Api"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3"
+  }
+}
