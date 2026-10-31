@@ -1,4 +1,6 @@
-﻿using Hallen.Application.GameTeams;
+﻿using Hallen.Api.Extensions;
+using Microsoft.AspNetCore.Authorization;
+using Hallen.Application.GameTeams;
 using Hallen.Common.DTOs.GameSessionSetup;
 using Hallen.Common.DTOs.GameTeams;
 using Microsoft.AspNetCore.Mvc;
@@ -6,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Hallen.Api.Controllers;
 
 [ApiController]
+[Authorize]
 public class GameTeamsController : ControllerBase
 {
     private readonly IGameTeamService gameTeamService;
@@ -20,7 +23,7 @@ public class GameTeamsController : ControllerBase
         Guid id,
         UpdateGameTeamRequest request)
     {
-        var team = await gameTeamService.UpdateAsync(id, request);
+        var team = await gameTeamService.UpdateAsync(id, request, User.GetUserId());
 
         if (team is null)
         {

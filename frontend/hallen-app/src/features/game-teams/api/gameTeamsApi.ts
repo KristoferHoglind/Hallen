@@ -4,10 +4,11 @@ import type { UpdateGameTeamRequest } from "../types/gameTeam";
 
 export async function updateGameTeam(
   gameTeamId: string,
-  request: UpdateGameTeamRequest
+  request: UpdateGameTeamRequest,
 ): Promise<GameSessionTeam> {
   const response = await fetch(`${API_BASE_URL}/api/game-teams/${gameTeamId}`, {
     method: "PUT",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
     },

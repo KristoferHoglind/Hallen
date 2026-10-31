@@ -1,0 +1,23 @@
+.git
+**/node_modules
+**/bin
+**/obj
+**/dist
+**/.env
+**/.env.*
+**/appsettings.Development.json
+**/appsettings.Local.json
+**/appsettings.*.Local.json
+**/*.pfx
+**/*.pem
+**/*.key
+**/*.crt
+.codex
+.agents
+.aws
+.vs
+.vscode
+.idea
+
+# Public Supabase CA certificate; no private keys or client credentials.
+!deploy/certificates/supabase-root-2021.crt

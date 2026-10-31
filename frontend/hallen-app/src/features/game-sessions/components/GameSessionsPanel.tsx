@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Alert, Card, Spinner } from "react-bootstrap";
+import { Link } from "react-router-dom";
+import { Alert, Button, Card, Spinner } from "react-bootstrap";
 import { GameSessionSetupPanel } from "../../game-session-setup/components/GameSessionSetupPanel";
 import { CreateGameSessionForm } from "./CreateGameSessionForm";
 import { DeleteGameSessionModal } from "./DeleteGameSessionModal";
@@ -29,6 +30,8 @@ export function GameSessionsPanel({
     removeGameSession,
   } = useGameSessions(sportsGroupId);
 
+  const [showMissingPlayers, setShowMissingPlayers] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const [selectedGameSessionId, setSelectedGameSessionId] = useState<
     string | null
   >(null);
@@ -45,7 +48,11 @@ export function GameSessionsPanel({
     numberOfTeams: number;
     playerIds: string[];
   }) {
-    await createGameSession(input);
+    const created = await createGameSession(input);
+    if (created) {
+      setIsCreating(false);
+      setSelectedGameSessionId(created.id);
+    }
   }
 
   async function handleSaveGameSession(input: {
@@ -69,58 +76,125 @@ export function GameSessionsPanel({
 
   return (
     <>
-      <Card>
-        <Card.Body>
-          <Card.Title>Spelkvällar</Card.Title>
+      {!selectedGameSessionId && (
+        <Card className="plain-section">
+          <Card.Body>
+            <h2 className="page-title mb-4">
+              {isCreating ? "Ny spelsession" : "Spelsessioner"}
+            </h2>
 
-          {canManage && (
-            <CreateGameSessionForm
-              activePlayers={activePlayers}
-              isSaving={isSaving}
-              onCreateGameSession={handleCreateGameSession}
-            />
-          )}
+            {canManage && !isCreating && (
+              <Button
+                className="mb-3"
+                disabled={isLoading || Boolean(errorMessage)}
+                onClick={() => {
+                  if (activePlayers.length === 0) {
+                    setShowMissingPlayers(true);
+                    return;
+                  }
+                  setShowMissingPlayers(false);
+                  setIsCreating(true);
+                }}
+              >
+                Ny spelsession
+              </Button>
+            )}
+            {canManage && showMissingPlayers && activePlayers.length === 0 && (
+              <Alert variant="warning">
+                Gruppen saknar aktiva spelare. Lägg till eller aktivera spelare
+                innan du skapar en spelsession.{" "}
+                <Alert.Link
+                  as={Link}
+                  to={`/grupper?grupp=${encodeURIComponent(sportsGroupId)}`}
+                >
+                  Hantera gruppens spelare
+                </Alert.Link>
+              </Alert>
+            )}
+            {canManage && isCreating && (
+              <>
+                <Button
+                  variant="outline-secondary"
+                  className="btn-navigation mb-3"
+                  disabled={isSaving}
+                  onClick={() => setIsCreating(false)}
+                >
+                  <i className="bi bi-arrow-left" aria-hidden="true" />
+                  Till spelsessioner
+                </Button>
+                <CreateGameSessionForm
+                  activePlayers={activePlayers}
+                  isSaving={isSaving}
+                  onCreateGameSession={handleCreateGameSession}
+                />
+              </>
+            )}
 
-          {!canManage && (
-            <p className="text-muted mb-4">
-              Du kan se spelkvällarna i gruppen, men bara ägare och
-              administratörer kan skapa, redigera eller ta bort spelkvällar.
-            </p>
-          )}
+            {!canManage && (
+              <p className="text-muted mb-4">
+                Du kan se spelsessionerna i gruppen, men bara ägare och
+                administratörer kan skapa, redigera eller ta bort spelsessioner.
+              </p>
+            )}
 
-          {isLoading && (
-            <div className="d-flex align-items-center gap-2">
-              <Spinner animation="border" size="sm" />
-              <span>Laddar spelkvällar...</span>
-            </div>
-          )}
+            {isLoading && (
+              <div className="d-flex align-items-center gap-2">
+                <Spinner animation="border" size="sm" />
+                <span>Laddar spelsessioner...</span>
+              </div>
+            )}
 
-          {errorMessage && <Alert variant="danger">{errorMessage}</Alert>}
+            {errorMessage && <Alert variant="danger">{errorMessage}</Alert>}
 
-          {!isLoading && !errorMessage && gameSessions.length === 0 && (
-            <Alert variant="info">
-              Inga spelkvällar finns för gruppen ännu.
-            </Alert>
-          )}
+            {!isCreating &&
+              !isLoading &&
+              !errorMessage &&
+              gameSessions.length === 0 && (
+                <Alert variant="info">
+                  Inga spelsessioner finns för gruppen ännu.
+                </Alert>
+              )}
 
-          {!isLoading && gameSessions.length > 0 && (
-            <GameSessionsList
-              gameSessions={gameSessions}
-              selectedGameSessionId={selectedGameSessionId}
-              canManage={canManage}
-              onOpenGameSession={setSelectedGameSessionId}
-              onEditGameSession={setGameSessionBeingEdited}
-              onDeleteGameSession={setGameSessionBeingDeleted}
-            />
-          )}
-        </Card.Body>
-      </Card>
+            {!isCreating && !isLoading && gameSessions.length > 0 && (
+              <GameSessionsList
+                gameSessions={gameSessions}
+                selectedGameSessionId={selectedGameSessionId}
+                canManage={canManage}
+                onOpenGameSession={setSelectedGameSessionId}
+                onEditGameSession={setGameSessionBeingEdited}
+                onDeleteGameSession={setGameSessionBeingDeleted}
+              />
+            )}
+          </Card.Body>
+        </Card>
+      )}
 
       {selectedGameSessionId && (
-        <GameSessionSetupPanel
-          gameSessionId={selectedGameSessionId}
-          canManage={canManage}
-        />
+        <>
+          <div className="d-flex flex-wrap align-items-center gap-3 mb-3">
+            <Button
+              variant="outline-secondary"
+              className="btn-navigation"
+              onClick={() => setSelectedGameSessionId(null)}
+            >
+              <i className="bi bi-arrow-left" aria-hidden="true" />
+              Till spelsessioner
+            </Button>
+            <span className="fw-semibold">
+              {
+                gameSessions.find(
+                  (session) => session.id === selectedGameSessionId,
+                )?.name
+              }
+            </span>
+          </div>
+          <GameSessionSetupPanel
+            onBack={() => setSelectedGameSessionId(null)}
+            key={selectedGameSessionId}
+            gameSessionId={selectedGameSessionId}
+            canManage={canManage}
+          />
+        </>
       )}
 
       {canManage && (

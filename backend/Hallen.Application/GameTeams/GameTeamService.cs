@@ -1,4 +1,5 @@
-﻿using Hallen.Common.DTOs.GameSessionSetup;
+﻿using Hallen.Application.SportsGroups;
+using Hallen.Common.DTOs.GameSessionSetup;
 using Hallen.Common.DTOs.GameTeams;
 using Hallen.Database.Data;
 using Microsoft.EntityFrameworkCore;
@@ -9,12 +10,15 @@ public class GameTeamService : IGameTeamService
 {
     private readonly HallenDbContext dbContext;
 
-    public GameTeamService(HallenDbContext dbContext)
+    private readonly ISportsGroupAuthorizationService authorization;
+
+    public GameTeamService(HallenDbContext dbContext, ISportsGroupAuthorizationService authorization)
     {
         this.dbContext = dbContext;
+        this.authorization = authorization;
     }
 
-    public async Task<GameSessionTeamDto?> UpdateAsync(Guid id, UpdateGameTeamRequest request)
+    public async Task<GameSessionTeamDto?> UpdateAsync(Guid id, UpdateGameTeamRequest request, Guid appUserId)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
         {
@@ -24,7 +28,7 @@ public class GameTeamService : IGameTeamService
         var gameTeam = await dbContext.GameTeams
             .FirstOrDefaultAsync(x => x.Id == id);
 
-        if (gameTeam is null)
+        if (gameTeam is null || !await authorization.CanManageGameSessionAsync(gameTeam.GameSessionId, appUserId))
         {
             return null;
         }

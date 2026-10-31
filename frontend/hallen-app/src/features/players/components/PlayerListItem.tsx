@@ -16,11 +16,11 @@ export function PlayerListItem({
 }: PlayerListItemProps) {
   return (
     <div
-      className={`list-group-item d-flex flex-column flex-md-row justify-content-between gap-3 ${
+      className={`list-group-item compact-player d-flex align-items-center justify-content-between gap-2 ${
         !player.isActive ? "bg-light text-muted opacity-75" : ""
       }`}
     >
-      <div className="d-flex flex-column align-items-start gap-1">
+      <div className="d-flex flex-wrap align-items-center gap-2">
         <div className="fw-semibold">{player.name}</div>
 
         <span
@@ -33,9 +33,9 @@ export function PlayerListItem({
       </div>
 
       {canManage && (
-        <ButtonGroup size="sm" className="align-self-end">
+        <ButtonGroup size="sm" className="flex-shrink-0">
           <Button
-            variant="outline-primary"
+            variant="link"
             aria-label={`Redigera ${player.name}`}
             title="Redigera"
             onClick={() => onEditPlayer(player)}
@@ -44,7 +44,8 @@ export function PlayerListItem({
           </Button>
 
           <Button
-            variant="outline-danger"
+            variant="link"
+            className="text-danger"
             aria-label={`Ta bort ${player.name}`}
             title="Ta bort"
             onClick={() => onDeletePlayer(player)}

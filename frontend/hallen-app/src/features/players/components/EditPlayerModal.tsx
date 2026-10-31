@@ -23,9 +23,7 @@ function EditPlayerForm({
   onSave,
 }: EditPlayerFormProps) {
   const [editPlayerName, setEditPlayerName] = useState(player.name);
-  const [editPlayerIsActive, setEditPlayerIsActive] = useState(
-    player.isActive,
-  );
+  const [editPlayerIsActive, setEditPlayerIsActive] = useState(player.isActive);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();

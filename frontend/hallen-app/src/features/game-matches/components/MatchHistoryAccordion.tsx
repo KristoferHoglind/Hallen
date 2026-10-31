@@ -5,7 +5,7 @@ import { MatchHistoryItem } from "./MatchHistoryItem";
 type MatchHistoryAccordionProps = {
   matches: GameMatch[];
   isSaving: boolean;
-  canManage: boolean
+  canManage: boolean;
   onEditMatch: (match: GameMatch) => void;
   onDeleteMatch: (match: GameMatch) => void;
 };
@@ -18,7 +18,7 @@ export function MatchHistoryAccordion({
   onDeleteMatch,
 }: MatchHistoryAccordionProps) {
   return (
-    <Accordion alwaysOpen>
+    <Accordion alwaysOpen flush className="match-history">
       {matches.map((match) => (
         <MatchHistoryItem
           key={match.id}

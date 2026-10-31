@@ -1,4 +1,5 @@
-import { Accordion, Badge, Button, Card, Col, Row } from "react-bootstrap";
+import { teamColor } from "../../../shared/utils/teamColor";
+import { Accordion, Badge, Button, Col, Row } from "react-bootstrap";
 import type { GameMatch } from "../types/gameMatch";
 
 type MatchHistoryItemProps = {
@@ -29,7 +30,10 @@ export function MatchHistoryItem({
       <Accordion.Header>
         <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 w-100 me-3">
           <div className="fw-semibold">
-            {match.name || "Match"} ({formatMatchDate(match.createdAt)})
+            {match.name || "Match"}
+            <span className="d-block text-muted small fw-normal mt-1">
+              {formatMatchDate(match.createdAt)}
+            </span>
           </div>
 
           <div className="d-flex flex-wrap gap-2">
@@ -37,10 +41,16 @@ export function MatchHistoryItem({
               <Badge
                 bg="light"
                 text="dark"
-                className="border"
+                className="history-result"
                 key={result.gameTeamId}
               >
+                <span
+                  className="team-dot"
+                  style={{ background: teamColor(result.gameTeamId) }}
+                  aria-hidden="true"
+                />
                 {result.gameTeamName}: {result.score}
+                {match.winnerGameTeamId === result.gameTeamId && " – Vinnare"}
               </Badge>
             ))}
           </div>
@@ -51,34 +61,30 @@ export function MatchHistoryItem({
         <Row className="g-3">
           {sortedResults.map((result) => (
             <Col md={6} lg={4} key={result.gameTeamId}>
-              <Card className="h-100">
-                <Card.Body>
-                  <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
-                    <Card.Title className="h6 mb-0">
-                      {result.gameTeamName}
-                    </Card.Title>
+              <section className="history-team">
+                <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
+                  <h4 className="h6 mb-0">{result.gameTeamName}</h4>
 
-                    <Badge bg="primary">{result.score}</Badge>
-                  </div>
+                  <Badge bg="primary">{result.score}</Badge>
+                </div>
 
-                  {result.players.length === 0 ? (
-                    <p className="text-muted small mb-0">
-                      Inga spelare sparade för laget i den här matchen.
-                    </p>
-                  ) : (
-                    <ul className="mb-0 ps-3 text-start">
-                      {result.players
-                        .slice()
-                        .sort((a, b) =>
-                          a.playerName.localeCompare(b.playerName, "sv"),
-                        )
-                        .map((player) => (
-                          <li key={player.playerId}>{player.playerName}</li>
-                        ))}
-                    </ul>
-                  )}
-                </Card.Body>
-              </Card>
+                {result.players.length === 0 ? (
+                  <p className="text-muted small mb-0">
+                    Inga spelare sparade för laget i den här matchen.
+                  </p>
+                ) : (
+                  <ul className="mb-0 ps-3 text-start">
+                    {result.players
+                      .slice()
+                      .sort((a, b) =>
+                        a.playerName.localeCompare(b.playerName, "sv"),
+                      )
+                      .map((player) => (
+                        <li key={player.playerId}>{player.playerName}</li>
+                      ))}
+                  </ul>
+                )}
+              </section>
             </Col>
           ))}
         </Row>
@@ -86,7 +92,7 @@ export function MatchHistoryItem({
         {canManage && (
           <div className="d-flex justify-content-end gap-2 mt-3">
             <Button
-              variant="outline-secondary"
+              variant="link"
               size="sm"
               onClick={() => onEdit(match)}
               disabled={isSaving}
@@ -96,7 +102,8 @@ export function MatchHistoryItem({
             </Button>
 
             <Button
-              variant="outline-danger"
+              variant="link"
+              className="text-danger"
               size="sm"
               onClick={() => onDelete(match)}
               disabled={isSaving}

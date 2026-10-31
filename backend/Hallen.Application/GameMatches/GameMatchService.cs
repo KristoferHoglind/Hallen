@@ -27,6 +27,7 @@ public class GameMatchService(HallenDbContext dbContext, ISportsGroupAuthorizati
                 Name = x.Name,
                 GameSessionId = x.GameSessionId,
                 MatchNumber = x.MatchNumber,
+                WinnerGameTeamId = x.WinnerGameTeamId,
                 CreatedAt = x.CreatedAt,
                 FinishedAt = x.FinishedAt,
                 TeamResults = x.TeamResults
@@ -79,6 +80,7 @@ public class GameMatchService(HallenDbContext dbContext, ISportsGroupAuthorizati
                 Name = x.Name,
                 GameSessionId = x.GameSessionId,
                 MatchNumber = x.MatchNumber,
+                WinnerGameTeamId = x.WinnerGameTeamId,
                 CreatedAt = x.CreatedAt,
                 FinishedAt = x.FinishedAt,
                 TeamResults = x.TeamResults
@@ -112,7 +114,7 @@ public class GameMatchService(HallenDbContext dbContext, ISportsGroupAuthorizati
             return null;
         }
 
-        if (request.TeamResults.Count < 2)
+        if (request.TeamResults.Count != 2)
         {
             return null;
         }
@@ -121,6 +123,13 @@ public class GameMatchService(HallenDbContext dbContext, ISportsGroupAuthorizati
             .AnyAsync(x => x.Id == gameSessionId);
 
         if (!gameSessionExists)
+        {
+            return null;
+        }
+
+        if (request.WinnerGameTeamId is Guid winnerId &&
+            (!request.TeamResults.Any(result => result.GameTeamId == winnerId) ||
+             request.TeamResults.Select(result => result.Score).Distinct().Count() != 1))
         {
             return null;
         }
@@ -157,6 +166,7 @@ public class GameMatchService(HallenDbContext dbContext, ISportsGroupAuthorizati
                 ? "Match"
                 : request.Name.Trim(),
             MatchNumber = nextMatchNumber,
+            WinnerGameTeamId = request.WinnerGameTeamId,
             CreatedAt = DateTimeOffset.UtcNow,
             FinishedAt = DateTimeOffset.UtcNow
         };
@@ -214,7 +224,7 @@ public class GameMatchService(HallenDbContext dbContext, ISportsGroupAuthorizati
             return null;
         }
 
-        if (request.TeamResults.Count < 2)
+        if (request.TeamResults.Count != 2)
         {
             return null;
         }
@@ -230,6 +240,13 @@ public class GameMatchService(HallenDbContext dbContext, ISportsGroupAuthorizati
         gameMatch.Name = string.IsNullOrWhiteSpace(request.Name)
             ? "Match"
             : request.Name.Trim();
+
+        if (request.WinnerGameTeamId is Guid winnerId &&
+            (!request.TeamResults.Any(result => result.GameTeamId == winnerId) ||
+             request.TeamResults.Select(result => result.Score).Distinct().Count() != 1))
+        {
+            return null;
+        }
 
         var requestedTeamIds = request.TeamResults
             .Select(x => x.GameTeamId)
@@ -257,6 +274,29 @@ public class GameMatchService(HallenDbContext dbContext, ISportsGroupAuthorizati
             .Where(x => x.GameMatchId == id)
             .ToListAsync();
 
+        // Keep historical players for retained teams and snapshot newly selected teams.
+        var previousTeamIds = existingResults.Select(result => result.GameTeamId).ToHashSet();
+        var removedTeamPlayers = await dbContext.GameMatchTeamPlayers
+            .Where(player => player.GameMatchId == id && !requestedTeamIds.Contains(player.GameTeamId))
+            .ToListAsync();
+        dbContext.GameMatchTeamPlayers.RemoveRange(removedTeamPlayers);
+
+        var addedTeamIds = requestedTeamIds.Where(teamId => !previousTeamIds.Contains(teamId)).ToList();
+        var addedTeamPlayers = await dbContext.GameTeamPlayers
+            .AsNoTracking()
+            .Include(player => player.Player)
+            .Where(player => addedTeamIds.Contains(player.GameTeamId))
+            .ToListAsync();
+        dbContext.GameMatchTeamPlayers.AddRange(addedTeamPlayers.Select(player => new GameMatchTeamPlayer
+        {
+            Id = Guid.NewGuid(),
+            GameMatchId = id,
+            GameTeamId = player.GameTeamId,
+            PlayerId = player.PlayerId,
+            PlayerName = player.Player.Name,
+            CreatedAt = DateTimeOffset.UtcNow
+        }));
+
         dbContext.GameMatchTeamResults.RemoveRange(existingResults);
 
         var updatedResults = request.TeamResults
@@ -271,6 +311,7 @@ public class GameMatchService(HallenDbContext dbContext, ISportsGroupAuthorizati
 
         dbContext.GameMatchTeamResults.AddRange(updatedResults);
 
+        gameMatch.WinnerGameTeamId = request.WinnerGameTeamId;
         gameMatch.FinishedAt = DateTimeOffset.UtcNow;
 
         await dbContext.SaveChangesAsync();

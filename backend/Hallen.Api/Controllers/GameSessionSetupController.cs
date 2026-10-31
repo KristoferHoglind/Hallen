@@ -27,6 +27,17 @@ public class GameSessionSetupController(IGameSessionSetupService gameSessionSetu
         return Ok(setup);
     }
 
+    [HttpPost("api/game-sessions/{gameSessionId:guid}/players/reset")]
+    public async Task<ActionResult<GameSessionSetupDto>> ResetPlayers(Guid gameSessionId)
+    {
+        var setup = await gameSessionSetupService.ResetPlayersAsync(gameSessionId, User.GetUserId());
+        if (setup is null)
+        {
+            return BadRequest();
+        }
+        return Ok(setup);
+    }
+
     [HttpPost("api/game-sessions/{gameSessionId:guid}/teams/randomize")]
     public async Task<ActionResult<GameSessionSetupDto>> RandomizeTeams(Guid gameSessionId)
     {

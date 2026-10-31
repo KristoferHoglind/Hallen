@@ -11,8 +11,11 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddDbContext<HallenDbContext>(options =>
-            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        if (string.IsNullOrWhiteSpace(connectionString))
+            throw new InvalidOperationException("Configure ConnectionStrings__DefaultConnection before starting Hallen.");
+
+        services.AddDbContext<HallenDbContext>(options => options.UseNpgsql(connectionString));
 
         return services;
     }

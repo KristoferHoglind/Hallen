@@ -6,6 +6,8 @@ public interface IGameSessionSetupService
 {
     Task<GameSessionSetupDto?> GetSetupAsync(Guid gameSessionId, Guid appUserId);
 
+    Task<GameSessionSetupDto?> ResetPlayersAsync(Guid gameSessionId, Guid appUserId);
+
     Task<GameSessionSetupDto?> RandomizeTeamsAsync(Guid gameSessionId, Guid appUserId);
 
     Task<GameSessionSetupDto?> CreateEmptyTeamsAsync(Guid gameSessionId, CreateEmptyTeamsRequest request, Guid appUserId);

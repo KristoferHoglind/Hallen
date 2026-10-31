@@ -1,8 +1,4 @@
-import type {
-  CurrentUser,
-  LoginRequest,
-  RegisterRequest,
-} from "../types/auth";
+import type { CurrentUser, LoginRequest, RegisterRequest } from "../types/auth";
 
 import { API_BASE_URL } from "../../../config/api";
 

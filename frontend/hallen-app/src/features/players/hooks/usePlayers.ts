@@ -91,11 +91,7 @@ export function usePlayers(sportsGroupId: string) {
     }
   }
 
-  async function savePlayer(
-    playerId: string,
-    name: string,
-    isActive: boolean,
-  ) {
+  async function savePlayer(playerId: string, name: string, isActive: boolean) {
     const trimmedName = name.trim();
 
     if (!trimmedName) {

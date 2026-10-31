@@ -167,7 +167,7 @@ function CreateGameSessionFormFields({
           selectedPlayerIds.length === 0
         }
       >
-        {isSaving ? "Sparar..." : "Skapa spelkväll"}
+        {isSaving ? "Sparar..." : "Skapa spelsession"}
       </Button>
     </Form>
   );

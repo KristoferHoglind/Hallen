@@ -25,7 +25,7 @@ export function DeleteGameSessionModal({
   return (
     <Modal show={gameSession !== null} onHide={onClose} centered>
       <Modal.Header closeButton>
-        <Modal.Title>Ta bort spelkväll?</Modal.Title>
+        <Modal.Title>Ta bort spelsession?</Modal.Title>
       </Modal.Header>
 
       <Modal.Body>

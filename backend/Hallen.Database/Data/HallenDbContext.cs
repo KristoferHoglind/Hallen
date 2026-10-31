@@ -1,4 +1,5 @@
-﻿using Hallen.Database.Entities;
+﻿using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
+using Hallen.Database.Entities;
 using Hallen.Database.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -6,12 +7,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Hallen.Database.Data;
 
-public class HallenDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>
+public class HallenDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>, IDataProtectionKeyContext
 {
     public HallenDbContext(DbContextOptions<HallenDbContext> options)
         : base(options)
     {
     }
+
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     public DbSet<SportsGroup> SportsGroups => Set<SportsGroup>();
 

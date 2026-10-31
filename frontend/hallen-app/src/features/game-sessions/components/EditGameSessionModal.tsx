@@ -53,7 +53,7 @@ function EditGameSessionForm({
   return (
     <Form onSubmit={handleSubmit}>
       <Modal.Header closeButton>
-        <Modal.Title>Redigera spelkväll</Modal.Title>
+        <Modal.Title>Redigera spelsession</Modal.Title>
       </Modal.Header>
 
       <Modal.Body>

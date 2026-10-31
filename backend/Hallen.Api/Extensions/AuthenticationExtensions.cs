@@ -7,7 +7,8 @@ namespace Hallen.Api.Extensions;
 public static class AuthenticationExtensions
 {
     public static IServiceCollection AddHallenAuthentication(
-        this IServiceCollection services)
+        this IServiceCollection services,
+        IWebHostEnvironment environment)
     {
         services
             .AddIdentityCore<AppUser>(options =>
@@ -32,7 +33,7 @@ public static class AuthenticationExtensions
         {
             options.Cookie.Name = "Hallen.Auth";
             options.Cookie.HttpOnly = true;
-            options.Cookie.SameSite = SameSiteMode.None;
+            options.Cookie.SameSite = environment.IsDevelopment() ? SameSiteMode.None : SameSiteMode.Lax;
             options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
 
             options.Events.OnRedirectToLogin = context =>

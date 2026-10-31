@@ -22,24 +22,24 @@ export function GameSessionListItem({
   return (
     <div className="list-group-item d-flex flex-column flex-md-row justify-content-between gap-3">
       <div className="d-flex flex-column gap-1">
-        <div className="fw-semibold">{gameSession.name}</div>
+        <button
+          type="button"
+          className="session-title"
+          aria-current={isSelected ? "true" : undefined}
+          onClick={() => onOpen(gameSession.id)}
+        >
+          {gameSession.name}
+          <i className="bi bi-arrow-right ms-2" aria-hidden="true" />
+        </button>
         <small className="text-muted">
           {formatStartsAt(gameSession.startsAt)}
         </small>
       </div>
 
-      <Button
-        variant={isSelected ? "primary" : "outline-primary"}
-        size="sm"
-        onClick={() => onOpen(gameSession.id)}
-      >
-        Öppna
-      </Button>
-
       {canManage && (
         <ButtonGroup size="sm" className="align-self-end ms-md-auto">
           <Button
-            variant="outline-primary"
+            variant="link"
             aria-label={`Redigera ${gameSession.name}`}
             title="Redigera"
             onClick={() => onEdit(gameSession)}
@@ -48,7 +48,8 @@ export function GameSessionListItem({
           </Button>
 
           <Button
-            variant="outline-danger"
+            variant="link"
+            className="text-danger"
             aria-label={`Ta bort ${gameSession.name}`}
             title="Ta bort"
             onClick={() => onDelete(gameSession)}

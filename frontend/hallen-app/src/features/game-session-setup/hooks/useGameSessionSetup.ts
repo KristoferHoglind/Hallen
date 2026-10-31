@@ -3,6 +3,7 @@ import {
   getGameSessionSetup,
   movePlayerToTeam,
   randomizeTeams,
+  resetPlayers,
 } from "../api/gameSessionSetupApi";
 import type { GameSessionSetup } from "../types/gameSessionSetup";
 import { updateGameTeam } from "../../game-teams/api/gameTeamsApi";
@@ -47,7 +48,7 @@ export function useGameSessionSetup(gameSessionId: string) {
   async function updateTeamName(gameTeamId: string, name: string) {
     if (!name.trim()) {
       setErrorMessage("Lagnamnet får inte vara tomt.");
-      return;
+      return false;
     }
 
     try {
@@ -70,8 +71,22 @@ export function useGameSessionSetup(gameSessionId: string) {
           ),
         };
       });
+      return true;
     } catch {
       setErrorMessage("Kunde inte uppdatera lagnamnet.");
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function resetSetupPlayers() {
+    try {
+      setIsSaving(true);
+      setErrorMessage(null);
+      setSetup(await resetPlayers(gameSessionId));
+    } catch {
+      setErrorMessage("Kunde inte återställa spelarna.");
     } finally {
       setIsSaving(false);
     }
@@ -101,8 +116,10 @@ export function useGameSessionSetup(gameSessionId: string) {
       });
 
       setSetup(updatedSetup);
+      return true;
     } catch {
       setErrorMessage("Kunde inte flytta spelaren.");
+      return false;
     } finally {
       setIsSaving(false);
     }
@@ -115,6 +132,7 @@ export function useGameSessionSetup(gameSessionId: string) {
     errorMessage,
     updateTeamName,
     randomizeSetupTeams,
+    resetSetupPlayers,
     movePlayer,
   };
 }

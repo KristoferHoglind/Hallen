@@ -29,6 +29,23 @@ public class GameSessionSetupService(HallenDbContext dbContext, ISportsGroupAuth
         return await BuildSetupDtoAsync(gameSessionId);
     }
 
+    public async Task<GameSessionSetupDto?> ResetPlayersAsync(Guid gameSessionId, Guid appUserId)
+    {
+        var canManage = await sportsGroupAuthorizationService.CanManageGameSessionAsync(gameSessionId, appUserId);
+        if (!canManage || !await dbContext.GameSessions.AnyAsync(session => session.Id == gameSessionId))
+        {
+            return null;
+        }
+
+        var assignments = await dbContext.GameTeamPlayers
+            .Where(player => player.GameTeam != null && player.GameTeam.GameSessionId == gameSessionId)
+            .ToListAsync();
+        dbContext.GameTeamPlayers.RemoveRange(assignments);
+        await dbContext.SaveChangesAsync();
+
+        return await BuildSetupDtoAsync(gameSessionId);
+    }
+
     public async Task<GameSessionSetupDto?> RandomizeTeamsAsync(Guid gameSessionId, Guid appUserId)
     {
         var canManage = await sportsGroupAuthorizationService.CanManageGameSessionAsync(gameSessionId, appUserId);

@@ -1,4 +1,5 @@
-import { Alert, Button, Card, Spinner } from "react-bootstrap";
+import { Accordion, Alert, Button, Spinner } from "react-bootstrap";
+import { PlayersPanel } from "../../players/components/PlayersPanel";
 import type { SportsGroup } from "../types/sportsGroup";
 
 type SportsGroupsListCardProps = {
@@ -6,7 +7,7 @@ type SportsGroupsListCardProps = {
   selectedSportsGroup: SportsGroup | null;
   isLoading: boolean;
   errorMessage: string | null;
-  onSelectSportsGroup: (sportsGroup: SportsGroup) => void;
+  onSelectSportsGroup: (sportsGroup: SportsGroup | null) => void;
   onOpenEditSportsGroupModal: (sportsGroup: SportsGroup) => void;
   onOpenDeleteSportsGroupModal: (sportsGroup: SportsGroup) => void;
 };
@@ -20,85 +21,78 @@ export function SportsGroupsListCard({
   onOpenEditSportsGroupModal,
   onOpenDeleteSportsGroupModal,
 }: SportsGroupsListCardProps) {
+  if (!isLoading && !errorMessage && sportsGroups.length === 0) return null;
+
   return (
-    <Card>
-      <Card.Body>
-        <Card.Title>Grupper</Card.Title>
-
-        {isLoading && (
-          <div className="d-flex align-items-center gap-2">
-            <Spinner animation="border" size="sm" />
-            <span>Laddar grupper...</span>
-          </div>
-        )}
-
-        {errorMessage && <Alert variant="danger">{errorMessage}</Alert>}
-
-        {!isLoading && !errorMessage && sportsGroups.length === 0 && (
-          <Alert variant="info">Inga grupper finns ännu.</Alert>
-        )}
-
-        {!isLoading && sportsGroups.length > 0 && (
-          <div className="list-group">
-            {sportsGroups.map((sportsGroup) => {
-              const isSelected = selectedSportsGroup?.id === sportsGroup.id;
-
-              return (
+    <section aria-label="Grupper">
+      <h2 className="h5 mb-3">Grupper</h2>
+      {isLoading && (
+        <div className="d-flex align-items-center gap-2">
+          <Spinner animation="border" size="sm" />
+          <span>Laddar grupper...</span>
+        </div>
+      )}
+      {errorMessage && <Alert variant="danger">{errorMessage}</Alert>}
+      {!isLoading && sportsGroups.length > 0 && (
+        <Accordion
+          flush
+          className="groups-accordion"
+          activeKey={selectedSportsGroup?.id ?? null}
+          onSelect={(key) =>
+            onSelectSportsGroup(
+              sportsGroups.find((group) => group.id === key) ?? null,
+            )
+          }
+        >
+          {sportsGroups.map((group) => {
+            const isOpen = selectedSportsGroup?.id === group.id;
+            return (
+              <Accordion.Item eventKey={group.id} key={group.id}>
                 <div
-                  key={sportsGroup.id}
-                  className={`list-group-item ${isSelected ? "active" : ""}`}
+                  className={`group-accordion-heading d-flex align-items-center ${isOpen ? "is-open" : ""}`}
                 >
-                  <div className="d-flex justify-content-between align-items-start gap-2">
-                    <button
-                      type="button"
-                      className={`btn btn-link p-0 text-start text-decoration-none ${
-                        isSelected ? "text-white" : "text-body"
-                      }`}
-                      onClick={() => onSelectSportsGroup(sportsGroup)}
-                    >
-                      <div className="fw-semibold">{sportsGroup.name}</div>
-                    </button>
-
-                    <div className="btn-group btn-group-sm">
-                      {sportsGroup.isOwner && (
-                        <Button
-                          variant={
-                            isSelected ? "outline-light" : "outline-primary"
-                          }
-                          size="sm"
-                          aria-label={`Redigera ${sportsGroup.name}`}
-                          title="Redigera"
-                          onClick={() =>
-                            onOpenEditSportsGroupModal(sportsGroup)
-                          }
-                        >
-                          <i className="bi bi-pencil" />
-                        </Button>
-                      )}
-
-                      {sportsGroup.isOwner && (
-                        <Button
-                          variant={
-                            isSelected ? "outline-light" : "outline-danger"
-                          }
-                          size="sm"
-                          aria-label={`Ta bort ${sportsGroup.name}`}
-                          title="Ta bort"
-                          onClick={() =>
-                            onOpenDeleteSportsGroupModal(sportsGroup)
-                          }
-                        >
-                          <i className="bi bi-trash" />
-                        </Button>
-                      )}
+                  <h3 className="h6 mb-0 flex-grow-1">
+                    <Accordion.Button className="text-break">
+                      {group.name}
+                    </Accordion.Button>
+                  </h3>
+                  {group.isOwner && (
+                    <div className="d-flex flex-shrink-0 pe-2">
+                      <Button
+                        variant="link"
+                        size="sm"
+                        aria-label={`Redigera ${group.name}`}
+                        title="Redigera grupp"
+                        onClick={() => onOpenEditSportsGroupModal(group)}
+                      >
+                        <i className="bi bi-pencil" aria-hidden="true" />
+                      </Button>
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className={isOpen ? "" : "text-danger"}
+                        aria-label={`Ta bort ${group.name}`}
+                        title="Ta bort grupp"
+                        onClick={() => onOpenDeleteSportsGroupModal(group)}
+                      >
+                        <i className="bi bi-trash" aria-hidden="true" />
+                      </Button>
                     </div>
-                  </div>
+                  )}
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </Card.Body>
-    </Card>
+                <Accordion.Body>
+                  {isOpen && (
+                    <PlayersPanel
+                      sportsGroupId={group.id}
+                      canManage={group.canManage}
+                    />
+                  )}
+                </Accordion.Body>
+              </Accordion.Item>
+            );
+          })}
+        </Accordion>
+      )}
+    </section>
   );
 }

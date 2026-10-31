@@ -163,3 +163,6 @@ temp/
 *.bak
 *.swp
 *.swo
+
+# Public Supabase CA certificate; no private keys or client credentials.
+!deploy/certificates/supabase-root-2021.crt

@@ -6,6 +6,7 @@ export type GameMatchTeamResult = {
 };
 
 export type GameMatch = {
+  winnerGameTeamId: string | null;
   id: string;
   gameSessionId: string;
   name: string;
@@ -32,10 +33,12 @@ export type UpdateGameMatchTeamResultRequest = {
 
 export type CreateGameMatchRequest = {
   name?: string;
+  winnerGameTeamId?: string | null;
   teamResults: CreateGameMatchTeamResultRequest[];
 };
 
 export type UpdateGameMatchRequest = {
   name?: string;
+  winnerGameTeamId?: string | null;
   teamResults: UpdateGameMatchTeamResultRequest[];
 };

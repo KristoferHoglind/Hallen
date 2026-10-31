@@ -11,7 +11,13 @@ export type ScoreInput = {
   score: number;
 };
 
-export function useMatchForm(teams: GameSessionTeam[]) {
+export function useMatchForm(teams: GameSessionTeam[], matches: GameMatch[]) {
+  const nextMatchNumber =
+    matches.reduce(
+      (highest, match) => Math.max(highest, match.matchNumber),
+      0,
+    ) + 1;
+  const defaultMatchName = `Match ${nextMatchNumber}`;
   const sortedTeams = useMemo(() => {
     return [...teams].sort((a, b) => a.name.localeCompare(b.name, "sv"));
   }, [teams]);
@@ -20,14 +26,50 @@ export function useMatchForm(teams: GameSessionTeam[]) {
     createEmptyScoreInputs(sortedTeams),
   );
 
+  const [selectedWinnerId, setWinnerGameTeamId] = useState<string | null>(null);
+  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([]);
+  const matchTeams =
+    sortedTeams.length === 2
+      ? sortedTeams
+      : sortedTeams.filter((team) => selectedTeamIds.includes(team.id));
+
+  const isDraw =
+    matchTeams.length === 2 &&
+    (scoreInputs.find((input) => input.gameTeamId === matchTeams[0].id)
+      ?.score ?? 0) ===
+      (scoreInputs.find((input) => input.gameTeamId === matchTeams[1].id)
+        ?.score ?? 0);
+  const winnerGameTeamId =
+    isDraw && matchTeams.some((team) => team.id === selectedWinnerId)
+      ? selectedWinnerId
+      : null;
+
+  function toggleTeam(gameTeamId: string) {
+    setWinnerGameTeamId(null);
+    setSelectedTeamIds((current) =>
+      current.includes(gameTeamId)
+        ? current.filter((id) => id !== gameTeamId)
+        : current.length < 2
+          ? [...current, gameTeamId]
+          : current,
+    );
+    setScoreInputs((current) =>
+      current.map((input) =>
+        input.gameTeamId === gameTeamId ? { ...input, score: 0 } : input,
+      ),
+    );
+  }
+
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
-  const [matchNameInput, setMatchNameInput] = useState("Match");
+  const [matchNameDraft, setMatchNameInput] = useState<string | null>(null);
+  const matchNameInput = matchNameDraft ?? defaultMatchName;
 
   function createEmptyScoreInputsForCurrentTeams() {
     return createEmptyScoreInputs(sortedTeams);
   }
 
   function updateScoreInput(gameTeamId: string, score: number) {
+    setWinnerGameTeamId(null);
     setScoreInputs((current) => {
       const existingInput = current.find(
         (input) => input.gameTeamId === gameTeamId,
@@ -54,6 +96,7 @@ export function useMatchForm(teams: GameSessionTeam[]) {
   }
 
   function adjustScoreInput(gameTeamId: string, delta: number) {
+    setWinnerGameTeamId(null);
     setScoreInputs((current) => {
       const existingInput = current.find(
         (input) => input.gameTeamId === gameTeamId,
@@ -81,14 +124,18 @@ export function useMatchForm(teams: GameSessionTeam[]) {
   }
 
   function resetForm() {
+    setWinnerGameTeamId(null);
+    setSelectedTeamIds([]);
     setEditingMatchId(null);
-    setMatchNameInput("Match");
+    setMatchNameInput(null);
     setScoreInputs(createEmptyScoreInputsForCurrentTeams());
   }
 
   function startEdit(match: GameMatch) {
+    setWinnerGameTeamId(match.winnerGameTeamId ?? null);
+    setSelectedTeamIds(match.teamResults.map((result) => result.gameTeamId));
     setEditingMatchId(match.id);
-    setMatchNameInput(match.name || "Match");
+    setMatchNameInput(match.name || `Match ${match.matchNumber}`);
 
     setScoreInputs(
       sortedTeams.map((team) => {
@@ -106,8 +153,9 @@ export function useMatchForm(teams: GameSessionTeam[]) {
 
   function buildRequest(): CreateGameMatchRequest | UpdateGameMatchRequest {
     return {
-      name: matchNameInput.trim() || "Match",
-      teamResults: sortedTeams.map((team) => {
+      name: matchNameInput.trim() || defaultMatchName,
+      winnerGameTeamId,
+      teamResults: matchTeams.map((team) => {
         const input = scoreInputs.find(
           (scoreInput) => scoreInput.gameTeamId === team.id,
         );
@@ -122,6 +170,11 @@ export function useMatchForm(teams: GameSessionTeam[]) {
 
   return {
     sortedTeams,
+    isDraw,
+    winnerGameTeamId,
+    setWinnerGameTeamId,
+    matchTeams,
+    toggleTeam,
     scoreInputs,
     editingMatchId,
     matchNameInput,

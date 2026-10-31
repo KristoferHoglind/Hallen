@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   createSportsGroup,
   deleteSportsGroup,
@@ -9,10 +10,16 @@ import type { SportsGroup } from "../types/sportsGroup";
 import { DeleteSportsGroupModal } from "./DeleteSportsGroupModal";
 import { EditSportsGroupModal } from "./EditSportsGroupModal";
 import { GroupAdminTab } from "./GroupAdminTab";
-import { Link } from "react-router-dom";
+import { CreateSportsGroupModal } from "./CreateSportsGroupModal";
 
 export function SportsGroupsPage() {
+  const [searchParams] = useSearchParams();
+  const requestedGroupId = searchParams.get("grupp");
   const [sportsGroups, setSportsGroups] = useState<SportsGroup[]>([]);
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  const [createErrorMessage, setCreateErrorMessage] = useState<string | null>(
+    null,
+  );
   const [newGroupName, setNewGroupName] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -44,9 +51,11 @@ export function SportsGroupsPage() {
         setSportsGroups(result);
         setErrorMessage(null);
 
-        if (result.length > 0) {
-          setSelectedSportsGroup(result[0]);
-        }
+        setSelectedSportsGroup(
+          result.find((group) => group.id === requestedGroupId) ??
+            result[0] ??
+            null,
+        );
       } catch {
         if (!isMounted) {
           return;
@@ -65,7 +74,7 @@ export function SportsGroupsPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [requestedGroupId]);
 
   async function handleCreateSportsGroup(event: React.FormEvent) {
     event.preventDefault();
@@ -78,7 +87,7 @@ export function SportsGroupsPage() {
 
     try {
       setIsSaving(true);
-      setErrorMessage(null);
+      setCreateErrorMessage(null);
 
       const createdSportsGroup = await createSportsGroup({
         name: trimmedName,
@@ -92,8 +101,9 @@ export function SportsGroupsPage() {
 
       setSelectedSportsGroup(createdSportsGroup);
       setNewGroupName("");
+      setIsCreatingGroup(false);
     } catch {
-      setErrorMessage("Kunde inte skapa grupp.");
+      setCreateErrorMessage("Kunde inte skapa grupp.");
     } finally {
       setIsSaving(false);
     }
@@ -202,15 +212,11 @@ export function SportsGroupsPage() {
     <div>
       <div className="d-flex justify-content-between align-items-start gap-3 mb-4">
         <div>
-          <h1 className="mb-1">Administrera grupper</h1>
+          <h1 className="page-title mb-1">Administrera grupper</h1>
           <p className="text-muted mb-0">
             Skapa grupper och hantera spelare inför speltillfällen.
           </p>
         </div>
-
-        <Link to="/spela" className="btn btn-outline-primary">
-          Till spela
-        </Link>
       </div>
 
       <GroupAdminTab
@@ -219,12 +225,26 @@ export function SportsGroupsPage() {
         isLoading={isLoading}
         isSaving={isSaving}
         errorMessage={errorMessage}
-        newGroupName={newGroupName}
-        onChangeNewGroupName={setNewGroupName}
-        onCreateSportsGroup={handleCreateSportsGroup}
+        onOpenCreateSportsGroup={() => {
+          setNewGroupName("");
+          setCreateErrorMessage(null);
+          setIsCreatingGroup(true);
+        }}
         onSelectSportsGroup={setSelectedSportsGroup}
         onOpenEditSportsGroupModal={openEditSportsGroupModal}
         onOpenDeleteSportsGroupModal={openDeleteSportsGroupModal}
+      />
+
+      <CreateSportsGroupModal
+        show={isCreatingGroup}
+        name={newGroupName}
+        isSaving={isSaving}
+        errorMessage={createErrorMessage}
+        onChangeName={setNewGroupName}
+        onSubmit={handleCreateSportsGroup}
+        onClose={() => {
+          if (!isSaving) setIsCreatingGroup(false);
+        }}
       />
 
       <EditSportsGroupModal

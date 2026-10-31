@@ -55,7 +55,7 @@ export function useGameSessions(sportsGroupId: string) {
           return;
         }
 
-        setErrorMessage("Kunde inte ladda spelkvällar.");
+        setErrorMessage("Kunde inte ladda spelsessioner.");
       } finally {
         if (isMounted) {
           setIsLoadingGameSessions(false);
@@ -150,6 +150,7 @@ export function useGameSessions(sportsGroupId: string) {
       setGameSessions((currentGameSessions) =>
         sortGameSessions([...currentGameSessions, createdGameSession]),
       );
+      return createdGameSession;
     } catch {
       setErrorMessage("Kunde inte skapa speltillfälle.");
       throw new Error("Kunde inte skapa speltillfälle.");
@@ -190,8 +191,8 @@ export function useGameSessions(sportsGroupId: string) {
         ),
       );
     } catch {
-      setErrorMessage("Kunde inte uppdatera spelkväll.");
-      throw new Error("Kunde inte uppdatera spelkväll.");
+      setErrorMessage("Kunde inte uppdatera spelsession.");
+      throw new Error("Kunde inte uppdatera spelsession.");
     } finally {
       setIsSaving(false);
     }
@@ -210,8 +211,8 @@ export function useGameSessions(sportsGroupId: string) {
         ),
       );
     } catch {
-      setErrorMessage("Kunde inte ta bort spelkväll.");
-      throw new Error("Kunde inte ta bort spelkväll.");
+      setErrorMessage("Kunde inte ta bort spelsession.");
+      throw new Error("Kunde inte ta bort spelsession.");
     } finally {
       setIsDeleting(false);
     }

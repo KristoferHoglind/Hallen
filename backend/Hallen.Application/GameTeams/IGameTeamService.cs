@@ -5,5 +5,5 @@ namespace Hallen.Application.GameTeams;
 
 public interface IGameTeamService
 {
-    Task<GameSessionTeamDto?> UpdateAsync(Guid id, UpdateGameTeamRequest request);
+    Task<GameSessionTeamDto?> UpdateAsync(Guid id, UpdateGameTeamRequest request, Guid appUserId);
 }

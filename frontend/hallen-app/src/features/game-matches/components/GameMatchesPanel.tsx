@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import { Alert, Badge, Card, Spinner } from "react-bootstrap";
+import { Alert, Badge, Spinner } from "react-bootstrap";
 import type { GameMatch } from "../types/gameMatch";
 import type { GameSessionTeam } from "../../game-session-setup/types/gameSessionSetup";
 import { CurrentMatchCard } from "./CurrentMatchCard";
 import { MatchHistoryAccordion } from "./MatchHistoryAccordion";
 import { MatchStatsTable } from "./MatchStatsTable";
+import { buildGameMatchAnecdotes } from "../utils/gameMatchAnecdotes";
 import { buildGameMatchStandings } from "../utils/gameMatchStandings";
 import { MatchPagination } from "./MatchPagination";
 import { DeleteMatchModal } from "./DeleteMatchModal";
@@ -16,15 +17,19 @@ type GameMatchesPanelProps = {
   gameSessionId: string;
   teams: GameSessionTeam[];
   canManage: boolean;
+  view?: "matches" | "results";
+  onEditRequest?: () => void;
 };
 
 export function GameMatchesPanel({
   gameSessionId,
   teams,
   canManage,
+  view = "matches",
+  onEditRequest,
 }: GameMatchesPanelProps) {
   const {
-    matches,
+    matches: savedMatches,
     isLoading,
     isSaving,
     errorMessage,
@@ -34,8 +39,24 @@ export function GameMatchesPanel({
     deleteMatch,
   } = useGameMatches(gameSessionId);
 
+  const matches = useMemo(() => {
+    const teamNames = new Map(teams.map((team) => [team.id, team.name]));
+    return savedMatches.map((match) => ({
+      ...match,
+      teamResults: match.teamResults.map((result) => ({
+        ...result,
+        gameTeamName: teamNames.get(result.gameTeamId) ?? result.gameTeamName,
+      })),
+    }));
+  }, [savedMatches, teams]);
+
   const {
     sortedTeams,
+    isDraw,
+    winnerGameTeamId,
+    setWinnerGameTeamId,
+    matchTeams,
+    toggleTeam,
     scoreInputs,
     editingMatchId,
     matchNameInput,
@@ -45,7 +66,7 @@ export function GameMatchesPanel({
     resetForm,
     startEdit,
     buildRequest,
-  } = useMatchForm(teams);
+  } = useMatchForm(teams, matches);
 
   const {
     currentPage,
@@ -66,9 +87,14 @@ export function GameMatchesPanel({
     return buildGameMatchStandings(matches, sortedTeams);
   }, [matches, sortedTeams]);
 
+  const anecdotes = useMemo(
+    () => buildGameMatchAnecdotes(matches, standings),
+    [matches, standings],
+  );
+
   async function handleSubmit() {
-    if (!hasEnoughTeams) {
-      setErrorMessage("Det behövs minst två lag för att spara en match.");
+    if (matchTeams.length !== 2) {
+      setErrorMessage("Välj exakt två lag som möter varandra.");
       return;
     }
 
@@ -108,24 +134,33 @@ export function GameMatchesPanel({
 
   return (
     <>
-      <Card className="mt-3">
-        <Card.Body>
-          <div className="d-flex justify-content-between align-items-start gap-3 mb-3">
-            <div>
-              <Card.Title className="mb-1">Matcher & resultat</Card.Title>
-              <div className="text-muted small">
-                {canManage
-                  ? "Registrera resultat för lagen i den här spelkvällen."
-                  : "Visa matcher och resultat för lagen i den här spelkvällen."}
-              </div>
+      <section className="matches-view">
+        <div className="d-flex justify-content-between align-items-start gap-3 mb-3">
+          <div>
+            <h2 className="page-title mb-1">
+              {view === "results" ? "Resultat & sammanställning" : "Matcher"}
+            </h2>
+            <div className="text-muted small">
+              {view === "results"
+                ? "Se tabellen och höjdpunkterna från hela spelsessionen."
+                : canManage
+                  ? "Registrera resultat och se tidigare matcher i spelsessionen."
+                  : "Se de spelade matcherna i den här spelsessionen."}
             </div>
-
-            <Badge bg="secondary">{matches.length} matcher</Badge>
           </div>
 
-          {canManage && hasEnoughTeams && (
+          <Badge bg="secondary">{matches.length} matcher</Badge>
+        </div>
+
+        <div hidden={view !== "matches"}>
+          {canManage && hasEnoughTeams && !isLoading && (
             <CurrentMatchCard
               teams={sortedTeams}
+              isDraw={isDraw}
+              winnerGameTeamId={winnerGameTeamId}
+              onChangeWinner={setWinnerGameTeamId}
+              matchTeams={matchTeams}
+              onToggleTeam={toggleTeam}
               scoreInputs={scoreInputs}
               editingMatchId={editingMatchId}
               matchNameInput={matchNameInput}
@@ -138,8 +173,7 @@ export function GameMatchesPanel({
             />
           )}
 
-          <MatchStatsTable standings={standings} />
-
+          <h3 className="h5 mt-5 mb-3">Spelade matcher</h3>
           {isLoading ? (
             <div className="d-flex align-items-center gap-2">
               <Spinner animation="border" size="sm" />
@@ -154,7 +188,13 @@ export function GameMatchesPanel({
               matches={pagedMatches}
               isSaving={isSaving}
               canManage={canManage}
-              onEditMatch={startEdit}
+              onEditMatch={(match) => {
+                startEdit(match);
+                onEditRequest?.();
+                requestAnimationFrame(() =>
+                  document.getElementById("currentMatchName")?.focus(),
+                );
+              }}
               onDeleteMatch={setMatchToDelete}
             />
           )}
@@ -164,20 +204,46 @@ export function GameMatchesPanel({
             totalPages={totalPages}
             onChangePage={goToPage}
           />
-
-          {errorMessage && (
-            <Alert variant="danger" className="mb-3">
-              {errorMessage}
-            </Alert>
+        </div>
+        <div hidden={view !== "results"}>
+          <MatchStatsTable standings={standings} />
+          {!isLoading && anecdotes.length > 0 && (
+            <section
+              className="session-anecdotes mt-4"
+              aria-labelledby="sessionAnecdotesTitle"
+            >
+              <h3 className="h5 mb-3" id="sessionAnecdotesTitle">
+                Snacket vid sidlinjen
+              </h3>
+              <ul className="list-unstyled mb-0">
+                {anecdotes.map((anecdote) => (
+                  <li key={anecdote}>
+                    <i className="bi bi-chat-quote" aria-hidden="true" />
+                    <p>{anecdote}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
-
-          {!hasEnoughTeams && (
-            <Alert variant="warning" className="mb-3">
-              Skapa minst två lag innan du registrerar matcher.
-            </Alert>
+          {!isLoading && matches.length === 0 && (
+            <p className="text-muted">
+              Spela och spara den första matchen så börjar snacket vid
+              sidlinjen!
+            </p>
           )}
-        </Card.Body>
-      </Card>
+        </div>
+        {errorMessage && (
+          <Alert variant="danger" className="mb-3">
+            {errorMessage}
+          </Alert>
+        )}
+
+        {!hasEnoughTeams && (
+          <Alert variant="warning" className="mb-3">
+            Skapa minst två lag innan du registrerar matcher.
+          </Alert>
+        )}
+      </section>
 
       {canManage && (
         <DeleteMatchModal

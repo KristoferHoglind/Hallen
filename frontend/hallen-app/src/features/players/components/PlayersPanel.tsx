@@ -12,10 +12,7 @@ type PlayersPanelProps = {
   canManage: boolean;
 };
 
-export function PlayersPanel({
-  sportsGroupId,
-  canManage,
-}: PlayersPanelProps) {
+export function PlayersPanel({ sportsGroupId, canManage }: PlayersPanelProps) {
   const {
     players,
     isLoading,

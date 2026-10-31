@@ -41,6 +41,7 @@ export default defineConfig({
         ],
       },
       workbox: {
+        navigateFallbackDenylist: [/^\/api(?:\/|$)/, /^\/(?:healthz|readyz)(?:\/|$)/],
         globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
       },
     }),

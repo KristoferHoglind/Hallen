@@ -62,7 +62,7 @@ export async function updateGameSession(
   );
 
   if (!response.ok) {
-    throw new Error("Kunde inte uppdatera spelkväll.");
+    throw new Error("Kunde inte uppdatera spelsession.");
   }
 }
 
@@ -76,6 +76,6 @@ export async function deleteGameSession(gameSessionId: string): Promise<void> {
   );
 
   if (!response.ok) {
-    throw new Error("Kunde inte ta bort spelkväll.");
+    throw new Error("Kunde inte ta bort spelsession.");
   }
 }

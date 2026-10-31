@@ -1,15 +1,6 @@
 import { useEffect, useState } from "react";
-import {
-  getCurrentUser,
-  login,
-  logout,
-  register,
-} from "../api/authApi";
-import type {
-  CurrentUser,
-  LoginRequest,
-  RegisterRequest,
-} from "../types/auth";
+import { getCurrentUser, login, logout, register } from "../api/authApi";
+import type { CurrentUser, LoginRequest, RegisterRequest } from "../types/auth";
 
 export function useAuth() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);

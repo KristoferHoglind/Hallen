@@ -1,9 +1,11 @@
-import { Container, Spinner } from "react-bootstrap";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Container, Spinner, Navbar, Nav, Button } from "react-bootstrap";
+import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { AuthPage } from "./features/auth/components/AuthPage";
 import { useAuth } from "./features/auth/hooks/useAuth";
 import { PlayPage } from "./features/play/components/PlayPage";
 import { SportsGroupsPage } from "./features/sports-groups/components/SportsGroupsPage";
+
+import { MembersPage } from "./features/sports-group-members/components/MembersPage";
 
 function App() {
   const {
@@ -19,7 +21,7 @@ function App() {
 
   if (isLoadingUser) {
     return (
-      <Container className="py-4">
+      <Container className="hallen-app py-4">
         <div className="d-flex align-items-center gap-2">
           <Spinner animation="border" size="sm" />
           <span>Laddar Hallen...</span>
@@ -30,7 +32,7 @@ function App() {
 
   if (!isAuthenticated) {
     return (
-      <Container className="py-4">
+      <Container className="hallen-app py-4">
         <AuthPage
           isSubmitting={isSubmittingAuth}
           errorMessage={authErrorMessage}
@@ -42,28 +44,54 @@ function App() {
   }
 
   return (
-    <Container className="py-4">
-      <div className="d-flex justify-content-between align-items-start gap-3 mb-4">
-        <div>
-          <h1 className="mb-1">Hallen</h1>
-          <p className="text-muted mb-0">
-            Inloggad som {currentUser?.displayName}
-          </p>
-        </div>
-
-        <button
-          type="button"
-          className="btn btn-outline-secondary btn-sm"
-          onClick={handleLogout}
-          disabled={isSubmittingAuth}
-        >
-          Logga ut
-        </button>
-      </div>
+    <Container className="hallen-app py-4">
+      <Navbar
+        collapseOnSelect
+        expand="lg"
+        className="app-navigation mb-4"
+        aria-label="Huvudmeny"
+      >
+        <Navbar.Brand as={NavLink} to="/spela" className="app-brand">
+          <img
+            src="/favicon.svg"
+            width="34"
+            height="34"
+            alt=""
+            className="me-2"
+          />
+          Hallen
+        </Navbar.Brand>
+        <Navbar.Toggle aria-controls="main-navigation" aria-label="Visa meny" />
+        <Navbar.Collapse id="main-navigation">
+          <Nav className="me-auto">
+            <Nav.Link as={NavLink} to="/spela" eventKey="/spela">
+              Spela
+            </Nav.Link>
+            <Nav.Link as={NavLink} to="/grupper" eventKey="/grupper">
+              Administrera grupper
+            </Nav.Link>
+            <Nav.Link as={NavLink} to="/medlemmar" eventKey="/medlemmar">
+              Medlemmar och behörigheter
+            </Nav.Link>
+          </Nav>
+          <div className="navigation-account">
+            <span className="text-muted small">{currentUser?.displayName}</span>
+            <Button
+              variant="link"
+              size="sm"
+              onClick={handleLogout}
+              disabled={isSubmittingAuth}
+            >
+              Logga ut
+            </Button>
+          </div>
+        </Navbar.Collapse>
+      </Navbar>
 
       <Routes>
         <Route path="/spela" element={<PlayPage />} />
         <Route path="/grupper" element={<SportsGroupsPage />} />
+        <Route path="/medlemmar" element={<MembersPage />} />
         <Route path="*" element={<Navigate to="/spela" replace />} />
       </Routes>
     </Container>

@@ -1,10 +1,11 @@
-import { Badge, Button, Card } from "react-bootstrap";
+import { Button } from "react-bootstrap";
 import type { GameSessionSetup } from "../types/gameSessionSetup";
 
 type SetupSummaryCardProps = {
   setup: GameSessionSetup | null;
   isSaving: boolean;
   onRandomizeTeams: () => void;
+  onResetPlayers: () => void;
   canManage: boolean;
 };
 
@@ -12,39 +13,55 @@ export function SetupSummaryCard({
   setup,
   isSaving,
   onRandomizeTeams,
+  onResetPlayers,
   canManage,
 }: SetupSummaryCardProps) {
   return (
-    <Card className="h-100">
-      <Card.Body>
-        <div className="d-flex justify-content-between align-items-start gap-3 mb-3">
-          <div>
-            <Card.Title className="mb-1">Laguppställning</Card.Title>
-            <div className="text-muted small">
-              Deltagare och antal lag är låsta för det här speltillfället.
-            </div>
+    <div className="setup-summary">
+      <div className="d-flex justify-content-between align-items-start gap-3 mb-3">
+        <div>
+          <h3 className="h6 mb-1">Spelare och lag</h3>
+          <div className="text-muted small">
+            {canManage
+              ? "Slumpa lag för att fördela spelarna automatiskt. Återställ spelare flyttar alla till Ej placerade."
+              : "Här visas deltagarna och lagen för den här spelsessionen."}
           </div>
-
-          {setup && (
-            <div className="d-flex flex-column align-items-end gap-1">
-              <Badge bg="secondary">
-                {setup.participants.length} deltagare
-              </Badge>
-              <Badge bg="secondary">{setup.teams.length} lag</Badge>
-            </div>
-          )}
         </div>
 
-        {canManage && (
+        {setup && (
+          <div className="d-flex flex-column align-items-end gap-1">
+            <span className="text-muted small text-nowrap">
+              {setup.participants.length} deltagare
+            </span>
+            <span className="text-muted small text-nowrap">
+              {setup.teams.length} lag
+            </span>
+          </div>
+        )}
+      </div>
+
+      {canManage && (
+        <div className="d-flex flex-wrap gap-2">
           <Button
-            variant="primary"
+            variant="outline-secondary"
             onClick={onRandomizeTeams}
             disabled={isSaving || !setup || setup.teams.length < 2}
           >
-            {isSaving ? "Slumpar..." : "Slumpa lag"}
+            Slumpa lag
           </Button>
-        )}
-      </Card.Body>
-    </Card>
+          <Button
+            variant="outline-secondary"
+            onClick={onResetPlayers}
+            disabled={
+              isSaving ||
+              !setup ||
+              !setup.teams.some((team) => team.players.length > 0)
+            }
+          >
+            Återställ spelare
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }

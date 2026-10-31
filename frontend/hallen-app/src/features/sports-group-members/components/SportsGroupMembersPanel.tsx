@@ -63,6 +63,7 @@ export function SportsGroupMembersPanel({
             <Form.Group className="mb-3" controlId="memberRole">
               <Form.Label>Roll</Form.Label>
               <Form.Select
+                className="member-role-select"
                 value={role}
                 onChange={(event) =>
                   setRole(event.target.value as SportsGroupMemberRole)
@@ -109,6 +110,8 @@ export function SportsGroupMembersPanel({
                     {isOwner ? (
                       <Form.Select
                         size="sm"
+                        className="member-role-select"
+                        aria-label={`Roll för ${member.displayName}`}
                         value={member.role}
                         onChange={(event) =>
                           updateMemberRole(

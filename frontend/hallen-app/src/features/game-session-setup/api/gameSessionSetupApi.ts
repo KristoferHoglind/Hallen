@@ -1,7 +1,7 @@
 import { API_BASE_URL } from "../../../config/api";
 import type {
   GameSessionSetup,
-  MovePlayerToTeamRequest
+  MovePlayerToTeamRequest,
 } from "../types/gameSessionSetup";
 
 export async function getGameSessionSetup(
@@ -60,5 +60,19 @@ export async function movePlayerToTeam(
     throw new Error("Kunde inte flytta spelare.");
   }
 
+  return response.json();
+}
+
+export async function resetPlayers(
+  gameSessionId: string,
+): Promise<GameSessionSetup> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/game-sessions/${gameSessionId}/players/reset`,
+    {
+      method: "POST",
+      credentials: "include",
+    },
+  );
+  if (!response.ok) throw new Error("Kunde inte återställa spelarna.");
   return response.json();
 }

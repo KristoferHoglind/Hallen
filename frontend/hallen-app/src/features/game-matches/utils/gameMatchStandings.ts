@@ -63,7 +63,13 @@ export function buildGameMatchStandings(
       standing.goalsFor += result.score;
       standing.goalsAgainst += goalsAgainst;
 
-      if (result.score === highestScore && isDrawForTop) {
+      if (match.winnerGameTeamId) {
+        if (result.gameTeamId === match.winnerGameTeamId) {
+          standing.wins += 1;
+        } else {
+          standing.losses += 1;
+        }
+      } else if (result.score === highestScore && isDrawForTop) {
         standing.draws += 1;
       } else if (result.score === highestScore) {
         standing.wins += 1;
