@@ -4,11 +4,18 @@ import {
   getSportsGroupMembers,
   removeSportsGroupMember,
   updateSportsGroupMemberRole,
+  transferSportsGroupOwnership,
 } from "../api/sportsGroupMembersApi";
 import type {
   SportsGroupMember,
   SportsGroupMemberRole,
 } from "../types/sportsGroupMember";
+
+const roleOrder: Record<SportsGroupMemberRole, number> = {
+  Owner: 0,
+  Admin: 1,
+  Member: 2,
+};
 
 export function useSportsGroupMembers(sportsGroupId: string) {
   const [members, setMembers] = useState<SportsGroupMember[]>([]);
@@ -111,6 +118,33 @@ export function useSportsGroupMembers(sportsGroupId: string) {
     }
   }
 
+  async function transferOwnership(memberId: string) {
+    setIsSaving(true);
+    setErrorMessage(null);
+    try {
+      await transferSportsGroupOwnership(sportsGroupId, memberId);
+      setMembers((current) =>
+        current.map((member) =>
+          member.id === memberId
+            ? { ...member, role: "Owner" }
+            : member.role === "Owner"
+              ? { ...member, role: "Admin" }
+              : member,
+        ),
+      );
+      return true;
+    } catch (cause) {
+      setErrorMessage(
+        cause instanceof Error
+          ? cause.message
+          : "Kunde inte överföra ägarskapet.",
+      );
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function removeMember(memberId: string) {
     try {
       setIsSaving(true);
@@ -129,13 +163,22 @@ export function useSportsGroupMembers(sportsGroupId: string) {
     }
   }
 
+  const sortedMembers = [...members].sort(
+    (a, b) =>
+      roleOrder[a.role] - roleOrder[b.role] ||
+      a.displayName.localeCompare(b.displayName, "sv-SE") ||
+      a.email.localeCompare(b.email, "sv-SE") ||
+      a.id.localeCompare(b.id),
+  );
+
   return {
-    members,
+    members: sortedMembers,
     isLoading,
     isSaving,
     errorMessage,
     addMember,
     updateMemberRole,
     removeMember,
+    transferOwnership,
   };
 }

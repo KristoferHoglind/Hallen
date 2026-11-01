@@ -3,14 +3,21 @@ import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  server: {
+    proxy: {
+      "/api": {
+        target: "https://localhost:7251",
+        changeOrigin: true,
+        // The local ASP.NET development certificate is self-signed.
+        secure: false,
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: [
-        "favicon.ico",
-        "apple-touch-icon.png",
-      ],
+      includeAssets: ["favicon.ico", "apple-touch-icon.png"],
       manifest: {
         name: "Hallen",
         short_name: "Hallen",
@@ -19,7 +26,7 @@ export default defineConfig({
         background_color: "#ffffff",
         display: "standalone",
         orientation: "portrait",
-        start_url: "/spela",
+        start_url: "/",
         scope: "/",
         icons: [
           {
@@ -41,7 +48,10 @@ export default defineConfig({
         ],
       },
       workbox: {
-        navigateFallbackDenylist: [/^\/api(?:\/|$)/, /^\/(?:healthz|readyz)(?:\/|$)/],
+        navigateFallbackDenylist: [
+          /^\/api(?:\/|$)/,
+          /^\/(?:healthz|readyz)(?:\/|$)/,
+        ],
         globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
       },
     }),

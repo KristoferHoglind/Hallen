@@ -17,6 +17,7 @@ if (Environment.GetEnvironmentVariable("RENDER_EXTERNAL_HOSTNAME") is { Length: 
 }
 
 builder.Services.AddControllers();
+builder.Services.AddHallenRateLimiting(builder.Configuration);
 builder.Services.AddHallenApplication();
 builder.Services.AddHallenDatabase(builder.Configuration);
 builder.Services.AddHallenAuthentication(builder.Environment);
@@ -68,6 +69,7 @@ app.Use(async (context, next) =>
         context.Response.Headers.CacheControl = "no-cache";
     context.Response.Headers.XContentTypeOptions = "nosniff";
     context.Response.Headers.XFrameOptions = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "no-referrer";
     await next();
 });
 
@@ -81,8 +83,10 @@ var staticFileOptions = new StaticFileOptions
     }
 };
 app.UseStaticFiles(staticFileOptions);
+app.UseRouting();
 app.UseHallenCors();
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 await app.SeedDevelopmentDatabaseAsync();
 

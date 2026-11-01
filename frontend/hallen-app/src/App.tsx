@@ -1,13 +1,23 @@
+import { HomePage } from "./features/home/HomePage";
+import { AccountsPage } from "./features/accounts/AccountsPage";
+import { ResetPasswordPage } from "./features/password-recovery/PasswordRecovery";
 import { Container, Spinner, Navbar, Nav, Button } from "react-bootstrap";
-import { Navigate, NavLink, Route, Routes } from "react-router-dom";
+import {
+  Navigate,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router-dom";
 import { AuthPage } from "./features/auth/components/AuthPage";
 import { useAuth } from "./features/auth/hooks/useAuth";
 import { PlayPage } from "./features/play/components/PlayPage";
 import { SportsGroupsPage } from "./features/sports-groups/components/SportsGroupsPage";
 
-import { MembersPage } from "./features/sports-group-members/components/MembersPage";
+import { InvitationPage } from "./features/invitations/components/InvitationPage";
 
 function App() {
+  const location = useLocation();
   const {
     currentUser,
     isAuthenticated,
@@ -17,6 +27,7 @@ function App() {
     handleRegister,
     handleLogin,
     handleLogout,
+    refreshCurrentUser,
   } = useAuth();
 
   if (isLoadingUser) {
@@ -26,6 +37,28 @@ function App() {
           <Spinner animation="border" size="sm" />
           <span>Laddar Hallen...</span>
         </div>
+      </Container>
+    );
+  }
+
+  if (location.pathname === "/aterstall-losenord") {
+    return (
+      <Container className="hallen-app py-4">
+        <ResetPasswordPage />
+      </Container>
+    );
+  }
+
+  if (location.pathname === "/inbjudan") {
+    return (
+      <Container className="hallen-app py-4">
+        <InvitationPage
+          currentUser={currentUser}
+          isSubmitting={isSubmittingAuth}
+          authError={authErrorMessage}
+          onLogin={handleLogin}
+          onRegister={handleRegister}
+        />
       </Container>
     );
   }
@@ -51,7 +84,7 @@ function App() {
         className="app-navigation mb-4"
         aria-label="Huvudmeny"
       >
-        <Navbar.Brand as={NavLink} to="/spela" className="app-brand">
+        <Navbar.Brand as={NavLink} to="/" className="app-brand">
           <img
             src="/favicon.svg"
             width="34"
@@ -64,15 +97,20 @@ function App() {
         <Navbar.Toggle aria-controls="main-navigation" aria-label="Visa meny" />
         <Navbar.Collapse id="main-navigation">
           <Nav className="me-auto">
+            <Nav.Link as={NavLink} to="/" end eventKey="/">
+              Startsida
+            </Nav.Link>
             <Nav.Link as={NavLink} to="/spela" eventKey="/spela">
-              Spela
+              Spelöversikt
             </Nav.Link>
             <Nav.Link as={NavLink} to="/grupper" eventKey="/grupper">
-              Administrera grupper
+              Mina grupper
             </Nav.Link>
-            <Nav.Link as={NavLink} to="/medlemmar" eventKey="/medlemmar">
-              Medlemmar och behörigheter
-            </Nav.Link>
+            {currentUser?.isSysAdmin && (
+              <Nav.Link as={NavLink} to="/konton" eventKey="/konton">
+                Konton och lösenord
+              </Nav.Link>
+            )}
           </Nav>
           <div className="navigation-account">
             <span className="text-muted small">{currentUser?.displayName}</span>
@@ -89,13 +127,49 @@ function App() {
       </Navbar>
 
       <Routes>
+        <Route
+          path="/"
+          element={
+            <HomePage
+              displayName={currentUser?.displayName}
+              canCreateGroups={currentUser?.canCreateGroups ?? false}
+              isSysAdmin={currentUser?.isSysAdmin ?? false}
+            />
+          }
+        />
+        {currentUser?.isSysAdmin && (
+          <Route
+            path="/konton"
+            element={
+              <AccountsPage
+                currentUserId={currentUser.id}
+                onPermissionsChanged={refreshCurrentUser}
+              />
+            }
+          />
+        )}
         <Route path="/spela" element={<PlayPage />} />
-        <Route path="/grupper" element={<SportsGroupsPage />} />
-        <Route path="/medlemmar" element={<MembersPage />} />
-        <Route path="*" element={<Navigate to="/spela" replace />} />
+        <Route
+          path="/grupper"
+          element={
+            <SportsGroupsPage
+              currentUserId={currentUser?.id ?? ""}
+              canCreateGroups={currentUser?.canCreateGroups ?? false}
+            />
+          }
+        />
+        <Route path="/medlemmar" element={<LegacyMembersRedirect />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Container>
   );
 }
 
 export default App;
+
+function LegacyMembersRedirect() {
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  params.set("flik", "medlemmar");
+  return <Navigate to={`/grupper?${params}`} replace />;
+}

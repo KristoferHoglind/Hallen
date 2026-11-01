@@ -4,6 +4,7 @@ import {
   createSportsGroup,
   deleteSportsGroup,
   getSportsGroups,
+  getSportsGroup,
   updateSportsGroup,
 } from "../api/sportsGroupsApi";
 import type { SportsGroup } from "../types/sportsGroup";
@@ -12,7 +13,13 @@ import { EditSportsGroupModal } from "./EditSportsGroupModal";
 import { GroupAdminTab } from "./GroupAdminTab";
 import { CreateSportsGroupModal } from "./CreateSportsGroupModal";
 
-export function SportsGroupsPage() {
+export function SportsGroupsPage({
+  currentUserId,
+  canCreateGroups,
+}: {
+  currentUserId: string;
+  canCreateGroups: boolean;
+}) {
   const [searchParams] = useSearchParams();
   const requestedGroupId = searchParams.get("grupp");
   const [sportsGroups, setSportsGroups] = useState<SportsGroup[]>([]);
@@ -52,16 +59,16 @@ export function SportsGroupsPage() {
         setErrorMessage(null);
 
         setSelectedSportsGroup(
-          result.find((group) => group.id === requestedGroupId) ??
-            result[0] ??
-            null,
+          result.find((group) => group.id === requestedGroupId) ?? null,
         );
-      } catch {
+      } catch (cause) {
         if (!isMounted) {
           return;
         }
 
-        setErrorMessage("Kunde inte ladda grupper.");
+        setErrorMessage(
+          cause instanceof Error ? cause.message : "Kunde inte ladda grupper.",
+        );
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -208,18 +215,46 @@ export function SportsGroupsPage() {
     }
   }
 
+  async function handleGroupPermissionsChanged(groupId: string) {
+    try {
+      const updated = await getSportsGroup(groupId);
+      setSportsGroups((current) =>
+        current.map((group) => (group.id === groupId ? updated : group)),
+      );
+      setSelectedSportsGroup((current) =>
+        current?.id === groupId ? updated : current,
+      );
+    } catch {
+      setErrorMessage(
+        "Rollen är sparad men gruppvyn kunde inte uppdateras. Ladda om sidan för att se aktuella behörigheter.",
+      );
+    }
+  }
+
   return (
     <div>
       <div className="d-flex justify-content-between align-items-start gap-3 mb-4">
         <div>
-          <h1 className="page-title mb-1">Administrera grupper</h1>
+          <h1 className="page-title mb-1">Mina grupper</h1>
           <p className="text-muted mb-0">
-            Skapa grupper och hantera spelare inför speltillfällen.
+            Se dina grupper, spelare och medlemmar.
           </p>
         </div>
       </div>
 
       <GroupAdminTab
+        currentUserId={currentUserId}
+        initialGroupTab={
+          searchParams.get("flik") === "resultat"
+            ? "results"
+            : searchParams.get("flik") === "statistik"
+              ? "statistics"
+              : searchParams.get("flik") === "medlemmar"
+                ? "members"
+                : "players"
+        }
+        onGroupPermissionsChanged={handleGroupPermissionsChanged}
+        canCreateGroups={canCreateGroups}
         sportsGroups={sportsGroups}
         selectedSportsGroup={selectedSportsGroup}
         isLoading={isLoading}

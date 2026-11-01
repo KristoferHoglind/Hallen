@@ -85,3 +85,21 @@ export async function removeSportsGroupMember(
     throw new Error("Kunde inte ta bort medlem.");
   }
 }
+export async function transferSportsGroupOwnership(
+  sportsGroupId: string,
+  memberId: string,
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/sports-groups/${sportsGroupId}/members/${memberId}/transfer-ownership`,
+    {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    },
+  );
+  if (!response.ok)
+    throw new Error(
+      "Kunde inte överföra ägarskapet. Kontrollera att du fortfarande är ägare och att mottagaren är en godkänd medlem med ett aktivt konto.",
+    );
+}

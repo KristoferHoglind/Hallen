@@ -39,6 +39,10 @@ export function useAuth() {
     };
   }, []);
 
+  async function refreshCurrentUser() {
+    setCurrentUser(await getCurrentUser());
+  }
+
   async function handleRegister(request: RegisterRequest) {
     try {
       setIsSubmittingAuth(true);
@@ -102,5 +106,6 @@ export function useAuth() {
     handleRegister,
     handleLogin,
     handleLogout,
+    refreshCurrentUser,
   };
 }

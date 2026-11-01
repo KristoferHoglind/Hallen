@@ -13,8 +13,12 @@ npm run db:update
 npm run dev
 ```
 
+Databasmigreringar körs automatiskt vid lokal API-start i Development.
+
 Frontend: `http://localhost:5173`. API: `https://localhost:7251`.
-Använd ett betrott lokalt .NET-utvecklingscertifikat (`dotnet dev-certs https --trust`).
+Frontend skickar `/api` via Vites lokala proxy till API:et, så inloggningen använder
+samma adress som sidan. Endast i Development skickas kakan utan Secure så att
+lokal HTTP fungerar; produktionskakan kräver HTTPS.
 
 ## Demo och produktion
 

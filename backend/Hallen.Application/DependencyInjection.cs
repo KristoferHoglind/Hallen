@@ -1,4 +1,5 @@
-﻿using Hallen.Application.GameMatches;
+﻿using Hallen.Application.Invitations;
+using Hallen.Application.GameMatches;
 using Hallen.Application.GameSessions;
 using Hallen.Application.GameSessionSetup;
 using Hallen.Application.GameTeams;
@@ -13,6 +14,9 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddHallenApplication(this IServiceCollection services)
     {
+        services.AddScoped<InvitationService>();
+        services.AddScoped<AccountAdministrationService>();
+        services.AddScoped<GroupStatisticsService>();
         services.AddScoped<IPlayerService, PlayerService>();
         services.AddScoped<ISportsGroupService, SportsGroupService>();
         services.AddScoped<IGameSessionService, GameSessionService>();

@@ -38,6 +38,16 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   return response.json();
 }
 
+async function confirmSession(response: Response): Promise<CurrentUser> {
+  const user: CurrentUser = await response.json();
+  const session = await getCurrentUser();
+  if (session?.id !== user.id)
+    throw new Error(
+      "Inloggningen kunde inte sparas i webbläsaren. Kontrollera att cookies är tillåtna och försök igen.",
+    );
+  return session;
+}
+
 export async function register(request: RegisterRequest): Promise<CurrentUser> {
   const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
     method: "POST",
@@ -52,7 +62,7 @@ export async function register(request: RegisterRequest): Promise<CurrentUser> {
     throw new Error(await parseErrorResponse(response));
   }
 
-  return response.json();
+  return confirmSession(response);
 }
 
 export async function login(request: LoginRequest): Promise<CurrentUser> {
@@ -69,7 +79,7 @@ export async function login(request: LoginRequest): Promise<CurrentUser> {
     throw new Error(await parseErrorResponse(response));
   }
 
-  return response.json();
+  return confirmSession(response);
 }
 
 export async function logout(): Promise<void> {
@@ -81,4 +91,15 @@ export async function logout(): Promise<void> {
   if (!response.ok) {
     throw new Error("Kunde inte logga ut.");
   }
+}
+
+export async function getRegistrationStatus(): Promise<{
+  bootstrapAllowed: boolean;
+}> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/registration`, {
+    credentials: "include",
+  });
+  if (!response.ok)
+    throw new Error("Kunde inte läsa registreringsinställningar.");
+  return response.json();
 }

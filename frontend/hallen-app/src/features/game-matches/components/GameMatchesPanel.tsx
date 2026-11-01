@@ -4,9 +4,7 @@ import type { GameMatch } from "../types/gameMatch";
 import type { GameSessionTeam } from "../../game-session-setup/types/gameSessionSetup";
 import { CurrentMatchCard } from "./CurrentMatchCard";
 import { MatchHistoryAccordion } from "./MatchHistoryAccordion";
-import { MatchStatsTable } from "./MatchStatsTable";
-import { buildGameMatchAnecdotes } from "../utils/gameMatchAnecdotes";
-import { buildGameMatchStandings } from "../utils/gameMatchStandings";
+import { MatchResultsSummary } from "./MatchResultsSummary";
 import { MatchPagination } from "./MatchPagination";
 import { DeleteMatchModal } from "./DeleteMatchModal";
 import { useGameMatches } from "../hooks/useGameMatches";
@@ -82,15 +80,6 @@ export function GameMatchesPanel({
   const [matchToDelete, setMatchToDelete] = useState<GameMatch | null>(null);
 
   const hasEnoughTeams = teams.length >= 2;
-
-  const standings = useMemo(() => {
-    return buildGameMatchStandings(matches, sortedTeams);
-  }, [matches, sortedTeams]);
-
-  const anecdotes = useMemo(
-    () => buildGameMatchAnecdotes(matches, standings),
-    [matches, standings],
-  );
 
   async function handleSubmit() {
     if (matchTeams.length !== 2) {
@@ -206,31 +195,11 @@ export function GameMatchesPanel({
           />
         </div>
         <div hidden={view !== "results"}>
-          <MatchStatsTable standings={standings} />
-          {!isLoading && anecdotes.length > 0 && (
-            <section
-              className="session-anecdotes mt-4"
-              aria-labelledby="sessionAnecdotesTitle"
-            >
-              <h3 className="h5 mb-3" id="sessionAnecdotesTitle">
-                Snacket vid sidlinjen
-              </h3>
-              <ul className="list-unstyled mb-0">
-                {anecdotes.map((anecdote) => (
-                  <li key={anecdote}>
-                    <i className="bi bi-chat-quote" aria-hidden="true" />
-                    <p>{anecdote}</p>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-          {!isLoading && matches.length === 0 && (
-            <p className="text-muted">
-              Spela och spara den första matchen så börjar snacket vid
-              sidlinjen!
-            </p>
-          )}
+          <MatchResultsSummary
+            matches={matches}
+            teams={sortedTeams}
+            isLoading={isLoading}
+          />
         </div>
         {errorMessage && (
           <Alert variant="danger" className="mb-3">

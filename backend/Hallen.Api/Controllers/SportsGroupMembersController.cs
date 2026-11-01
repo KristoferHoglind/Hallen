@@ -46,10 +46,18 @@ public class SportsGroupMembersController(ISportsGroupMemberService sportsGroupM
         if (member is null)
         {
             return BadRequest(
-                "Could not update member role. Check permissions and that the group keeps at least one owner.");
+                "Kunde inte ändra rollen. Ägare och administratörer kan växla mellan Admin och Medlem. Ägarrollen kan bara ändras via Överför ägarskap.");
         }
 
         return Ok(member);
+    }
+
+    [HttpPost("api/sports-groups/{sportsGroupId:guid}/members/{memberId:guid}/transfer-ownership")]
+    public async Task<IActionResult> TransferOwnership(Guid sportsGroupId, Guid memberId)
+    {
+        if (!await sportsGroupMemberService.TransferOwnershipAsync(sportsGroupId, memberId, User.GetUserId()))
+            return BadRequest("Ägarskapet kunde inte överföras. Bara den nuvarande ägaren kan överföra det till en annan godkänd medlem med ett aktivt konto.");
+        return NoContent();
     }
 
     [HttpDelete("api/sports-groups/{sportsGroupId:guid}/members/{memberId:guid}")]
@@ -62,7 +70,7 @@ public class SportsGroupMembersController(ISportsGroupMemberService sportsGroupM
         if (!wasRemoved)
         {
             return BadRequest(
-                "Could not remove member. Check permissions and that the group keeps at least one owner.");
+                "Kunde inte ta bort medlemmen. Ägaren kan inte tas bort; överför ägarskapet först.");
         }
 
         return NoContent();

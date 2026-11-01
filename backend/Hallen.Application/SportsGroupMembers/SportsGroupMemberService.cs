@@ -10,9 +10,9 @@ public class SportsGroupMemberService(HallenDbContext dbContext, ISportsGroupAut
 {
     public async Task<List<SportsGroupMemberDto>> GetMembersAsync(Guid sportsGroupId, Guid appUserId)
     {
-        var canManage = await sportsGroupAuthorizationService.CanManageSportsGroupAsync(sportsGroupId, appUserId);
+        var hasAccess = await sportsGroupAuthorizationService.HasApprovedMembershipAsync(sportsGroupId, appUserId);
 
-        if (!canManage)
+        if (!hasAccess)
         {
             return [];
         }
@@ -37,6 +37,9 @@ public class SportsGroupMemberService(HallenDbContext dbContext, ISportsGroupAut
 
     public async Task<SportsGroupMemberDto?> AddMemberAsync(Guid sportsGroupId, AddSportsGroupMemberRequest request, Guid appUserId)
     {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        await LockGroupAsync(sportsGroupId);
+
         var requestedRole = ParseRole(request.Role);
 
         if (requestedRole is null)
@@ -89,6 +92,7 @@ public class SportsGroupMemberService(HallenDbContext dbContext, ISportsGroupAut
             existingMember.ApprovedByUserId = appUserId;
 
             await dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             return await GetMemberDtoAsync(existingMember.Id);
         }
@@ -108,15 +112,19 @@ public class SportsGroupMemberService(HallenDbContext dbContext, ISportsGroupAut
         dbContext.SportsGroupMembers.Add(member);
 
         await dbContext.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         return await GetMemberDtoAsync(member.Id);
     }
 
     public async Task<SportsGroupMemberDto?> UpdateMemberRoleAsync(Guid sportsGroupId, Guid memberId, UpdateSportsGroupMemberRoleRequest request, Guid appUserId)
     {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        await LockGroupAsync(sportsGroupId);
+
         var currentUserRole = await sportsGroupAuthorizationService.GetRoleAsync(sportsGroupId, appUserId);
 
-        if (currentUserRole != SportsGroupRole.Owner)
+        if (currentUserRole is not (SportsGroupRole.Owner or SportsGroupRole.Admin))
         {
             return null;
         }
@@ -138,27 +146,22 @@ public class SportsGroupMemberService(HallenDbContext dbContext, ISportsGroupAut
             return null;
         }
 
-        var ownerCount = await dbContext.SportsGroupMembers.CountAsync(member =>
-            member.SportsGroupId == sportsGroupId &&
-            member.Status == SportsGroupMemberStatus.Approved &&
-            member.Role == SportsGroupRole.Owner);
-
-        if (member.Role == SportsGroupRole.Owner &&
-            requestedRole.Value != SportsGroupRole.Owner &&
-            ownerCount <= 1)
-        {
-            return null;
-        }
+        if (member.Role == SportsGroupRole.Owner || requestedRole == SportsGroupRole.Owner ||
+            member.Status != SportsGroupMemberStatus.Approved) return null;
 
         member.Role = requestedRole.Value;
 
         await dbContext.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         return await GetMemberDtoAsync(member.Id);
     }
 
     public async Task<bool> RemoveMemberAsync(Guid sportsGroupId, Guid memberId, Guid appUserId)
     {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        await LockGroupAsync(sportsGroupId);
+
         var currentUserRole = await sportsGroupAuthorizationService.GetRoleAsync(sportsGroupId, appUserId);
 
         if (currentUserRole != SportsGroupRole.Owner)
@@ -176,20 +179,39 @@ public class SportsGroupMemberService(HallenDbContext dbContext, ISportsGroupAut
             return false;
         }
 
-        var ownerCount = await dbContext.SportsGroupMembers.CountAsync(member =>
-            member.SportsGroupId == sportsGroupId &&
-            member.Status == SportsGroupMemberStatus.Approved &&
-            member.Role == SportsGroupRole.Owner);
-
-        if (member.Role == SportsGroupRole.Owner && ownerCount <= 1)
-        {
-            return false;
-        }
+        if (member.Role == SportsGroupRole.Owner) return false;
 
         dbContext.SportsGroupMembers.Remove(member);
 
         await dbContext.SaveChangesAsync();
+        await transaction.CommitAsync();
 
+        return true;
+    }
+
+    private async Task LockGroupAsync(Guid groupId)
+    {
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"SELECT id FROM sports_groups WHERE id = {groupId} FOR UPDATE");
+        dbContext.ChangeTracker.Clear();
+    }
+
+    public async Task<bool> TransferOwnershipAsync(Guid sportsGroupId, Guid memberId, Guid appUserId)
+    {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        await LockGroupAsync(sportsGroupId);
+        var owner = await dbContext.SportsGroupMembers.SingleOrDefaultAsync(member =>
+            member.SportsGroupId == sportsGroupId && member.AppUserId == appUserId &&
+            member.Role == SportsGroupRole.Owner && member.Status == SportsGroupMemberStatus.Approved && member.AppUser.Status == UserAccountStatus.Active);
+        var target = await dbContext.SportsGroupMembers.SingleOrDefaultAsync(member =>
+            member.Id == memberId && member.SportsGroupId == sportsGroupId &&
+            member.Status == SportsGroupMemberStatus.Approved && member.AppUser.Status == UserAccountStatus.Active);
+        if (owner is null || target is null || target.AppUserId == appUserId) return false;
+        // Release the unique owner slot before assigning it, inside the same transaction.
+        owner.Role = SportsGroupRole.Admin;
+        await dbContext.SaveChangesAsync();
+        target.Role = SportsGroupRole.Owner;
+        await dbContext.SaveChangesAsync();
+        await transaction.CommitAsync();
         return true;
     }
 
@@ -200,7 +222,7 @@ public class SportsGroupMemberService(HallenDbContext dbContext, ISportsGroupAut
                 ignoreCase: true,
                 out var parsedRole))
         {
-            return parsedRole;
+            return Enum.IsDefined(parsedRole) ? parsedRole : null;
         }
 
         return null;
@@ -210,7 +232,7 @@ public class SportsGroupMemberService(HallenDbContext dbContext, ISportsGroupAut
     {
         if (currentUserRole == SportsGroupRole.Owner)
         {
-            return true;
+            return requestedRole is SportsGroupRole.Member or SportsGroupRole.Admin;
         }
 
         if (currentUserRole == SportsGroupRole.Admin)

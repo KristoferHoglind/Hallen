@@ -15,7 +15,7 @@ export function MainTabs({ activeTab, onChangeTab }: MainTabsProps) {
         className="flex-fill"
         onClick={() => onChangeTab("play")}
       >
-        Spela
+        Spelöversikt
       </Button>
 
       <Button
@@ -23,7 +23,7 @@ export function MainTabs({ activeTab, onChangeTab }: MainTabsProps) {
         className="flex-fill"
         onClick={() => onChangeTab("groups")}
       >
-        Grupp
+        Mina grupper
       </Button>
     </div>
   );

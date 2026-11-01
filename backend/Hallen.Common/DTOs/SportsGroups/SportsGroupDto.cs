@@ -6,6 +6,8 @@ public class SportsGroupDto
 
     public required string Name { get; set; }
 
+    public string Description { get; set; } = string.Empty;
+
     public DateTimeOffset CreatedAt { get; set; }
 
     public string CurrentUserRole { get; set; } = string.Empty;

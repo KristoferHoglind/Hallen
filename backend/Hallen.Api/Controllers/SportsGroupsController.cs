@@ -1,4 +1,7 @@
 ﻿using Hallen.Api.Extensions;
+using Hallen.Database.Data;
+using Hallen.Database.Entities;
+using Microsoft.EntityFrameworkCore;
 using Hallen.Application.Players;
 using Hallen.Application.SportsGroups;
 using Hallen.Common.DTOs.Players;
@@ -11,7 +14,7 @@ namespace Hallen.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/sports-groups")]
-public class SportsGroupsController(ISportsGroupService sportsGroupService, IPlayerService playerService) : ControllerBase
+public class SportsGroupsController(ISportsGroupService sportsGroupService, IPlayerService playerService, HallenDbContext db) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<List<SportsGroupDto>>> GetSportsGroups()
@@ -42,6 +45,9 @@ public class SportsGroupsController(ISportsGroupService sportsGroupService, IPla
     public async Task<ActionResult<SportsGroupDto>> CreateSportsGroup(CreateSportsGroupRequest request)
     {
         var appUserId = User.GetUserId();
+
+        if (!await db.Users.AnyAsync(user => user.Id == appUserId && user.Status == UserAccountStatus.Active && user.CanCreateGroups))
+            return Forbid();
 
         var sportsGroup = await sportsGroupService.CreateSportsGroupAsync(
             request,

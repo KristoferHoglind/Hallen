@@ -19,6 +19,7 @@ public class SportsGroupService(HallenDbContext dbContext, ISportsGroupAuthoriza
             {
                 Id = member.SportsGroup.Id,
                 Name = member.SportsGroup.Name,
+                Description = member.SportsGroup.Description,
                 CreatedAt = member.SportsGroup.CreatedAt,
                 CurrentUserRole = member.Role.ToString(),
                 CanManage =
@@ -40,6 +41,7 @@ public class SportsGroupService(HallenDbContext dbContext, ISportsGroupAuthoriza
             {
                 Id = member.SportsGroup.Id,
                 Name = member.SportsGroup.Name,
+                Description = member.SportsGroup.Description,
                 CreatedAt = member.SportsGroup.CreatedAt,
                 CurrentUserRole = member.Role.ToString(),
                 CanManage =
@@ -128,6 +130,10 @@ public class SportsGroupService(HallenDbContext dbContext, ISportsGroupAuthoriza
 
     public async Task<bool> DeleteSportsGroupAsync(Guid id, Guid appUserId)
     {
+        await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        // Serialize deletion with ownership transfers, then check the current owner.
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"SELECT id FROM sports_groups WHERE id = {id} FOR UPDATE");
+        dbContext.ChangeTracker.Clear();
         var isOwner = await authorizationService.IsOwnerAsync(id, appUserId);
 
         if (!isOwner)
@@ -145,6 +151,7 @@ public class SportsGroupService(HallenDbContext dbContext, ISportsGroupAuthoriza
         dbContext.SportsGroups.Remove(sportsGroup);
 
         await dbContext.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         return true;
     }

@@ -14,6 +14,8 @@ public static class AuthenticationExtensions
             .AddIdentityCore<AppUser>(options =>
             {
                 options.User.RequireUniqueEmail = true;
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(10);
 
                 options.Password.RequiredLength = 8;
                 options.Password.RequireDigit = true;
@@ -23,7 +25,11 @@ public static class AuthenticationExtensions
             })
             .AddRoles<IdentityRole<Guid>>()
             .AddEntityFrameworkStores<HallenDbContext>()
-            .AddSignInManager();
+            .AddSignInManager()
+            .AddDefaultTokenProviders();
+
+        services.Configure<DataProtectionTokenProviderOptions>(options => options.TokenLifespan = TimeSpan.FromHours(1));
+        services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.Zero);
 
         services
             .AddAuthentication(IdentityConstants.ApplicationScheme)
@@ -31,10 +37,11 @@ public static class AuthenticationExtensions
 
         services.ConfigureApplicationCookie(options =>
         {
-            options.Cookie.Name = "Hallen.Auth";
+            options.Cookie.Name = environment.IsDevelopment() ? "Hallen.Dev.Auth" : "Hallen.Auth";
             options.Cookie.HttpOnly = true;
-            options.Cookie.SameSite = environment.IsDevelopment() ? SameSiteMode.None : SameSiteMode.Lax;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+            options.Cookie.SameSite = SameSiteMode.Lax;
+            // Vite proxies local /api requests from the HTTP development origin.
+            options.Cookie.SecurePolicy = environment.IsDevelopment() ? CookieSecurePolicy.None : CookieSecurePolicy.Always;
 
             options.Events.OnRedirectToLogin = context =>
             {

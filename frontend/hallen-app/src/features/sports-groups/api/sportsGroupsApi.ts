@@ -11,7 +11,15 @@ export async function getSportsGroups(): Promise<SportsGroup[]> {
   });
 
   if (!response.ok) {
-    throw new Error("Kunde inte hämta grupper.");
+    if (response.status === 401)
+      throw new Error(
+        "Din inloggning är inte längre giltig. Logga ut och logga in igen. Om du använder flera flikar, kontrollera att du är inloggad med samma konto i dem.",
+      );
+    if (response.status === 403)
+      throw new Error("Ditt konto saknar behörighet att läsa grupper.");
+    throw new Error(
+      `Kunde inte hämta grupper (HTTP ${response.status}). Försök igen eller kontakta administratören.`,
+    );
   }
 
   return response.json();

@@ -3,6 +3,7 @@ export type SportsGroupRole = "Owner" | "Admin" | "Member";
 export type SportsGroup = {
   id: string;
   name: string;
+  description: string;
   createdAt: string;
   currentUserRole: SportsGroupRole | "";
   canManage: boolean;

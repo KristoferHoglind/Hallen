@@ -8,6 +8,8 @@ public class SportsGroup
 
     public string Name { get; set; } = string.Empty;
 
+    public string Description { get; set; } = string.Empty;
+
     public DateTimeOffset CreatedAt { get; set; }
 
     public List<Player> Players { get; set; } = [];

@@ -1,8 +1,11 @@
-import { Accordion, Alert, Button, Spinner } from "react-bootstrap";
-import { PlayersPanel } from "../../players/components/PlayersPanel";
+import { GroupContents } from "./GroupContents";
+import { Alert, Button, Spinner } from "react-bootstrap";
 import type { SportsGroup } from "../types/sportsGroup";
 
 type SportsGroupsListCardProps = {
+  currentUserId: string;
+  initialGroupTab: "players" | "members" | "results" | "statistics";
+  onGroupPermissionsChanged: (groupId: string) => Promise<void>;
   sportsGroups: SportsGroup[];
   selectedSportsGroup: SportsGroup | null;
   isLoading: boolean;
@@ -13,6 +16,9 @@ type SportsGroupsListCardProps = {
 };
 
 export function SportsGroupsListCard({
+  currentUserId,
+  initialGroupTab,
+  onGroupPermissionsChanged,
   sportsGroups,
   selectedSportsGroup,
   isLoading,
@@ -25,7 +31,6 @@ export function SportsGroupsListCard({
 
   return (
     <section aria-label="Grupper">
-      <h2 className="h5 mb-3">Grupper</h2>
       {isLoading && (
         <div className="d-flex align-items-center gap-2">
           <Spinner animation="border" size="sm" />
@@ -34,27 +39,25 @@ export function SportsGroupsListCard({
       )}
       {errorMessage && <Alert variant="danger">{errorMessage}</Alert>}
       {!isLoading && sportsGroups.length > 0 && (
-        <Accordion
-          flush
-          className="groups-accordion"
-          activeKey={selectedSportsGroup?.id ?? null}
-          onSelect={(key) =>
-            onSelectSportsGroup(
-              sportsGroups.find((group) => group.id === key) ?? null,
-            )
-          }
-        >
+        <div className="groups-accordion accordion accordion-flush">
           {sportsGroups.map((group) => {
             const isOpen = selectedSportsGroup?.id === group.id;
             return (
-              <Accordion.Item eventKey={group.id} key={group.id}>
+              <section className="accordion-item" key={group.id}>
                 <div
                   className={`group-accordion-heading d-flex align-items-center ${isOpen ? "is-open" : ""}`}
                 >
                   <h3 className="h6 mb-0 flex-grow-1">
-                    <Accordion.Button className="text-break">
+                    <button
+                      type="button"
+                      id={`group-heading-${group.id}`}
+                      className={`accordion-button text-break ${isOpen ? "" : "collapsed"}`}
+                      aria-expanded={isOpen}
+                      aria-controls={`group-content-${group.id}`}
+                      onClick={() => onSelectSportsGroup(isOpen ? null : group)}
+                    >
                       {group.name}
-                    </Accordion.Button>
+                    </button>
                   </h3>
                   {group.isOwner && (
                     <div className="d-flex flex-shrink-0 pe-2">
@@ -80,18 +83,27 @@ export function SportsGroupsListCard({
                     </div>
                   )}
                 </div>
-                <Accordion.Body>
+                <div
+                  id={`group-content-${group.id}`}
+                  className="accordion-body"
+                  role="region"
+                  aria-labelledby={`group-heading-${group.id}`}
+                  hidden={!isOpen}
+                >
                   {isOpen && (
-                    <PlayersPanel
-                      sportsGroupId={group.id}
-                      canManage={group.canManage}
+                    <GroupContents
+                      currentUserId={currentUserId}
+                      key={`${group.id}:${initialGroupTab}`}
+                      group={group}
+                      initialTab={initialGroupTab}
+                      onGroupPermissionsChanged={onGroupPermissionsChanged}
                     />
                   )}
-                </Accordion.Body>
-              </Accordion.Item>
+                </div>
+              </section>
             );
           })}
-        </Accordion>
+        </div>
       )}
     </section>
   );

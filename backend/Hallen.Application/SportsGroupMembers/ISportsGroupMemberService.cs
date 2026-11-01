@@ -10,5 +10,7 @@ public interface ISportsGroupMemberService
 
     Task<SportsGroupMemberDto?> UpdateMemberRoleAsync(Guid sportsGroupId, Guid memberId, UpdateSportsGroupMemberRoleRequest request, Guid appUserId);
 
+    Task<bool> TransferOwnershipAsync(Guid sportsGroupId, Guid memberId, Guid appUserId);
+
     Task<bool> RemoveMemberAsync(Guid sportsGroupId, Guid memberId, Guid appUserId);
 }

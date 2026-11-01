@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Button, Card, Form, Spinner } from "react-bootstrap";
 import type { LoginRequest, RegisterRequest } from "../types/auth";
+
+import { getRegistrationStatus } from "../api/authApi";
 
 type AuthMode = "login" | "register";
 
 type AuthPageProps = {
+  invitationToken?: string;
   isSubmitting: boolean;
   errorMessage: string | null;
   onLogin: (request: LoginRequest) => Promise<boolean>;
@@ -12,13 +15,30 @@ type AuthPageProps = {
 };
 
 export function AuthPage({
+  invitationToken,
   isSubmitting,
   errorMessage,
   onLogin,
   onRegister,
 }: AuthPageProps) {
-  const [mode, setMode] = useState<AuthMode>("login");
+  const [mode, setMode] = useState<AuthMode>(
+    invitationToken ? "register" : "login",
+  );
 
+  const [bootstrapAllowed, setBootstrapAllowed] = useState(false);
+  useEffect(() => {
+    if (invitationToken) return;
+    let active = true;
+    getRegistrationStatus()
+      .then((result) => {
+        if (active) setBootstrapAllowed(result.bootstrapAllowed);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [invitationToken]);
+  const canRegister = Boolean(invitationToken) || bootstrapAllowed;
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
@@ -36,6 +56,7 @@ export function AuthPage({
     }
 
     await onRegister({
+      invitationToken,
       email,
       displayName,
       password,
@@ -47,7 +68,7 @@ export function AuthPage({
       <div className="mb-4 text-center">
         <h1 className="mb-1">Hallen</h1>
         <p className="text-muted mb-0">
-          Logga in för att hantera grupper och matcher.
+          Logga in för att se dina grupper och matcher.
         </p>
       </div>
 
@@ -64,17 +85,31 @@ export function AuthPage({
               Logga in
             </Button>
 
-            <Button
-              type="button"
-              variant={mode === "register" ? "primary" : "outline-primary"}
-              className="flex-fill"
-              onClick={() => setMode("register")}
-              disabled={isSubmitting}
-            >
-              Skapa konto
-            </Button>
+            {canRegister && (
+              <Button
+                type="button"
+                variant={mode === "register" ? "primary" : "outline-primary"}
+                className="flex-fill"
+                onClick={() => setMode("register")}
+                disabled={isSubmitting}
+              >
+                Skapa konto
+              </Button>
+            )}
           </div>
 
+          {!canRegister && (
+            <p className="text-muted small">
+              Nya konton skapas via inbjudan. Be en gruppägare om en
+              inbjudningslänk.
+            </p>
+          )}
+          {mode === "login" && (
+            <p className="text-muted small">
+              Glömt lösenordet? Be din gruppägare eller admin om en
+              återställningslänk.
+            </p>
+          )}
           {errorMessage && (
             <Alert variant="danger" className="mb-3">
               {errorMessage}

@@ -8,6 +8,8 @@ public class AppUser : IdentityUser<Guid>
 
     public bool IsSysAdmin { get; set; }
 
+    public bool CanCreateGroups { get; set; }
+
     public UserAccountStatus Status { get; set; } = UserAccountStatus.Active;
 
     public DateTimeOffset CreatedAt { get; set; }

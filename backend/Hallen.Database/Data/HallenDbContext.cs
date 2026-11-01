@@ -34,11 +34,25 @@ public class HallenDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Gu
 
     public DbSet<GameMatchTeamPlayer> GameMatchTeamPlayers => Set<GameMatchTeamPlayer>();
 
+    public DbSet<GroupInvitation> GroupInvitations => Set<GroupInvitation>();
+
     public DbSet<SportsGroupMember> SportsGroupMembers => Set<SportsGroupMember>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<AppUser>().Property(user => user.CanCreateGroups).HasDefaultValue(false);
+
+        modelBuilder.Entity<GroupInvitation>(entity =>
+        {
+            entity.HasKey(item => item.Id);
+            entity.HasIndex(item => item.TokenHash).IsUnique();
+            entity.Property(item => item.TokenHash).HasMaxLength(64).IsRequired();
+            entity.Property(item => item.Role).HasConversion<string>().HasMaxLength(20);
+            entity.HasOne(item => item.SportsGroup).WithMany().HasForeignKey(item => item.SportsGroupId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(item => item.CreatedByUser).WithMany().HasForeignKey(item => item.CreatedByUserId).OnDelete(DeleteBehavior.Cascade);
+        });
 
         modelBuilder.Entity<AppUser>(entity =>
         {
@@ -50,6 +64,8 @@ public class HallenDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Gu
         modelBuilder.Entity<SportsGroupMember>(entity =>
         {
             entity.HasKey(member => member.Id);
+            entity.HasIndex(member => member.SportsGroupId).IsUnique()
+                .HasFilter("\"Role\" = 'Owner' AND \"Status\" = 'Approved'");
 
             entity.HasIndex(member => new
             {
@@ -84,6 +100,7 @@ public class HallenDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Gu
         modelBuilder.Entity<SportsGroup>(entity =>
         {
             entity.ToTable("sports_groups");
+            entity.Property(group => group.Description).HasMaxLength(2000).HasDefaultValue("");
 
             entity.HasKey(sportsGroup => sportsGroup.Id);
 

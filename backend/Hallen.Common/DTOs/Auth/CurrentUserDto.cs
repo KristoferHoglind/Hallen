@@ -10,5 +10,7 @@ public class CurrentUserDto
 
     public bool IsSysAdmin { get; set; }
 
+    public bool CanCreateGroups { get; set; }
+
     public string Status { get; set; } = string.Empty;
 }
