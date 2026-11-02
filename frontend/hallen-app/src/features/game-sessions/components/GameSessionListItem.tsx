@@ -31,12 +31,18 @@ export function GameSessionListItem({
           {gameSession.name}
           <i className="bi bi-arrow-right ms-2" aria-hidden="true" />
         </button>
+        {gameSession.isClosed && (
+          <span className="small text-muted">
+            <i className="bi bi-lock-fill me-1" aria-hidden="true" />
+            Avslutad
+          </span>
+        )}
         <small className="text-muted">
           {formatStartsAt(gameSession.startsAt)}
         </small>
       </div>
 
-      {canManage && (
+      {canManage && !gameSession.isClosed && (
         <ButtonGroup size="sm" className="align-self-end ms-md-auto">
           <Button
             variant="link"

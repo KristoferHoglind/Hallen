@@ -12,6 +12,7 @@ import { sortGameSessions } from "../utils/sortGameSessions";
 import { fromDateTimeLocalValue } from "../utils/gameSessionDate";
 
 type CreateGameSessionInput = {
+  teamNames?: string[];
   name: string;
   startsAt: string;
   numberOfTeams: number;
@@ -140,6 +141,7 @@ export function useGameSessions(sportsGroupId: string) {
       const createdGameSession = await createGameSessionForSportsGroup(
         sportsGroupId,
         {
+          teamNames: input.teamNames,
           name: trimmedName,
           startsAt: fromDateTimeLocalValue(input.startsAt),
           numberOfTeams: input.numberOfTeams,
@@ -153,7 +155,7 @@ export function useGameSessions(sportsGroupId: string) {
       return createdGameSession;
     } catch {
       setErrorMessage("Kunde inte skapa speltillfälle.");
-      throw new Error("Kunde inte skapa speltillfälle.");
+      return;
     } finally {
       setIsSaving(false);
     }
@@ -231,7 +233,15 @@ export function useGameSessions(sportsGroupId: string) {
     );
   }
 
+  function updateSessionStatus(id: string, isClosed: boolean) {
+    setGameSessions((current) =>
+      current.map((session) =>
+        session.id === id ? { ...session, isClosed } : session,
+      ),
+    );
+  }
   return {
+    updateSessionStatus,
     updateParticipantCount,
     gameSessions,
     activePlayers,

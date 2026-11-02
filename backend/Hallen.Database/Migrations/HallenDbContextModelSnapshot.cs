@@ -314,6 +314,9 @@ namespace Hallen.Database.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<bool>("IsClosed")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -450,6 +453,42 @@ namespace Hallen.Database.Migrations
                     b.HasIndex("SportsGroupId");
 
                     b.ToTable("players", (string)null);
+                });
+
+            modelBuilder.Entity("Hallen.Database.Models.SessionTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("NumberOfTeams")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SportsGroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string[]>("TeamNames")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<string>("Time")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)");
+
+                    b.Property<int>("Weekday")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SportsGroupId");
+
+                    b.ToTable("session_templates", (string)null);
                 });
 
             modelBuilder.Entity("Hallen.Database.Models.SportsGroup", b =>
@@ -797,6 +836,17 @@ namespace Hallen.Database.Migrations
                         .WithMany("Players")
                         .HasForeignKey("SportsGroupId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("SportsGroup");
+                });
+
+            modelBuilder.Entity("Hallen.Database.Models.SessionTemplate", b =>
+                {
+                    b.HasOne("Hallen.Database.Models.SportsGroup", "SportsGroup")
+                        .WithMany()
+                        .HasForeignKey("SportsGroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("SportsGroup");

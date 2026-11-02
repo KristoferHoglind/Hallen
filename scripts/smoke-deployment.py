@@ -675,6 +675,90 @@ def main():
                                   'SELECT "CanCreateGroups" FROM "AspNetUsers" WHERE "Email" IN (\'owner@example.test\', \'locked@example.test\') ORDER BY "Email";')
         assert preserved_grants.splitlines() == ["f", "t"], preserved_grants
         print("OK: group creation default is off and existing explicit permissions survive migration")
+        # Exercise new features in their own group, away from existing statistics fixtures.
+        feature_group = api("POST", "/api/sports-groups", {"name": "Templates and partners"}, cookie, 201)[0]
+        feature_path = "/api/sports-groups/" + feature_group["id"]
+        template_path = feature_path + "/session-templates"
+        personal_path = feature_path + "/player-statistics"
+        api("GET", template_path, expected=401)
+        api("GET", personal_path, expected=401)
+        template_body = {"name": "Monday floorball", "weekday": 1, "time": "16:00", "numberOfTeams": 2, "teamNames": ["Green", "White"]}
+        template = api("POST", template_path, template_body, cookie)[0]
+        assert api("GET", template_path, cookie=cookie)[0] == [template]
+        api("PUT", template_path + "/" + template["id"], {**template_body, "time": "17:30"}, cookie)
+        api("POST", template_path, {**template_body, "weekday": 7}, cookie, 400)
+        api("POST", template_path, {**template_body, "time": "25:90"}, cookie, 400)
+        api("POST", template_path, {**template_body, "teamNames": ["Only one"]}, cookie, 400)
+        api("PUT", group_path + "/session-templates/" + template["id"], template_body, cookie, 404)
+        feature_players = [api("POST", feature_path + "/players", {"name": name}, cookie, 201)[0] for name in ("Ada", "Bea", "Cleo", "Dee", "Idle")]
+        feature_session = api("POST", feature_path + "/game-sessions", {"name": template["name"], "startsAt": "2026-11-02T15:00:00Z", "numberOfTeams": 2, "teamNames": template["teamNames"], "playerIds": [p["id"] for p in feature_players]}, cookie, 201)[0]
+        feature_session_path = "/api/game-sessions/" + feature_session["id"]
+        assert feature_session["isClosed"] is False
+        feature_setup = api("GET", feature_session_path + "/setup", cookie=cookie)[0]
+        assert {t["name"] for t in feature_setup["teams"]} == {"Green", "White"}
+        feature_teams = [t["id"] for t in feature_setup["teams"]]
+        for members, team in [(feature_players[:2],feature_teams[0]), (feature_players[2:4],feature_teams[1])]:
+            api("PUT", feature_session_path + "/players/team", {"playerIds": [p["id"] for p in members], "gameTeamId": team}, cookie)
+        feature_matches = [api("POST", feature_session_path + "/matches", match_body(feature_teams, scores, winner), cookie, 201)[0] for scores,winner in [([2,0],None),([2,0],None),([0,1],None),([1,1],None),([0,0],feature_teams[0]),([2,0],None)]]
+        personal = api("GET", personal_path, cookie=cookie)[0]
+        ada = next(p for p in personal if p["playerId"] == feature_players[0]["id"])
+        assert (ada["matches"],ada["wins"],ada["draws"],ada["losses"]) == (6,4,1,1), ada
+        assert [f["outcome"] for f in ada["form"]] == ["V","V","F","O","V","V"]
+        assert len(ada["partners"]) == 1 and ada["partners"][0]["playerId"] == feature_players[1]["id"]
+        assert (ada["partners"][0]["matches"],ada["partners"][0]["wins"],ada["partners"][0]["draws"]) == (6,4,1)
+        assert next(p for p in personal if p["name"] == "Idle")["matches"] == 0
+        api("PUT", feature_session_path + "/players", {"playerIds": [p["id"] for p in feature_players if p != feature_players[1]]}, cookie)
+        assert api("GET", personal_path, cookie=cookie)[0] == personal
+        api("POST", feature_session_path + "/matches", match_body(feature_teams,[0,1]), cookie, 201)
+        after_attendance = api("GET", personal_path, cookie=cookie)[0]
+        assert next(p for p in after_attendance if p["name"] == "Bea")["matches"] == 6
+        ada = next(p for p in after_attendance if p["name"] == "Ada")
+        assert ada["matches"] == 7 and ada["partners"][0]["matches"] == 6
+        # An ordinary invited member can read all three features, but cannot change them.
+        reader_link = api("POST", feature_path + "/invitations", {"role":"Member"}, cookie)[0]
+        _, reader_cookie = register("feature-reader",reader_link["token"])
+        api("GET", template_path, cookie=reader_cookie)
+        api("GET", personal_path, cookie=reader_cookie)
+        api("POST", template_path, template_body, reader_cookie, 403)
+        api("PUT", feature_session_path + "/status", {"isClosed":True}, reader_cookie, 403)
+        api("GET", group_path + "/player-statistics", cookie=reader_cookie, expected=403)
+        api("PUT", feature_session_path + "/status", {"isClosed":True}, cookie)
+        assert api("GET", feature_session_path, cookie=cookie)[0]["isClosed"] is True
+        assert api("GET", feature_session_path + "/setup", cookie=reader_cookie)[0]["isClosed"] is True
+        original_match = feature_matches[0]
+        locked_changes = [
+            ("POST",feature_session_path+"/matches",match_body(feature_teams,[99,0])),
+            ("PUT","/api/game-matches/"+original_match["id"],match_body(feature_teams,[99,0])),
+            ("DELETE","/api/game-matches/"+original_match["id"],None),
+            ("PUT","/api/game-teams/"+feature_teams[0],{"name":"Oops"}),
+            ("POST",feature_session_path+"/players/reset",None),
+            ("POST",feature_session_path+"/teams/randomize",None),
+            ("POST",feature_session_path+"/teams/create-empty",{"numberOfTeams":2,"playerIds":[feature_players[0]["id"]]}),
+            ("PUT",feature_session_path+"/players",{"playerIds":[]}),
+            ("PUT",feature_session_path+"/players/team",{"playerIds":[feature_players[0]["id"]],"gameTeamId":None}),
+            ("PUT",feature_session_path+"/players/"+feature_players[0]["id"]+"/team",{"gameTeamId":None}),
+            ("PUT",feature_session_path,{"name":"Oops","startsAt":"2026-11-02T15:00:00Z"}),
+            ("DELETE",feature_session_path,None),
+        ]
+        for method,path,body in locked_changes:
+            api(method,path,body,cookie,409)
+        assert api("GET",personal_path,cookie=reader_cookie)[0] == after_attendance
+        assert api("GET","/api/game-matches/"+original_match["id"],cookie=cookie)[0] == original_match
+        api("PUT",feature_session_path+"/status",{"isClosed":False},cookie)
+        api("PUT","/api/game-teams/"+feature_teams[0],{"name":"Green again"},cookie)
+        # Closing and editing are serialized against the same session row.
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            close_future = pool.submit(request,"PUT",feature_session_path+"/status",{"isClosed":True},cookie)
+            edit_future = pool.submit(request,"PUT","/api/game-teams/"+feature_teams[0],{"name":"Race name"},cookie)
+            assert close_future.result()[0] == 200
+            assert edit_future.result()[0] in (200,409)
+        assert api("GET",feature_session_path,cookie=cookie)[0]["isClosed"] is True
+        api("DELETE",template_path+"/"+template["id"],cookie=cookie,expected=204)
+        assert api("GET",template_path,cookie=cookie)[0] == []
+        assert api("GET",feature_session_path,cookie=cookie)[0]["name"] == template["name"]
+        print("OK: template CRUD/validation/group isolation, named teams, historical radar partners, form, zero-match players and reader permissions")
+        print("OK: all 12 closed-session write routes blocked, stats preserved, reopening and concurrent closing/editing serialized")
+
         actual, _ = api("GET", "/api/auth/me", cookie=cookie)
         assert actual["id"] == owner["id"], "Login did not survive a fresh container"
         assert api("GET", group_path, cookie=cookie)[0]["id"] == group["id"]

@@ -16,7 +16,8 @@ if (Environment.GetEnvironmentVariable("RENDER_EXTERNAL_HOSTNAME") is { Length: 
     builder.Configuration["AllowedHosts"] = renderHost;
 }
 
-builder.Services.AddControllers();
+builder.Services.AddScoped<Hallen.Api.Filters.SessionWriteFilter>();
+builder.Services.AddControllers(options => options.Filters.AddService<Hallen.Api.Filters.SessionWriteFilter>());
 builder.Services.AddHallenRateLimiting(builder.Configuration);
 builder.Services.AddHallenApplication();
 builder.Services.AddHallenDatabase(builder.Configuration);

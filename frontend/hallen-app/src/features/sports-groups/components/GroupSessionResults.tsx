@@ -193,7 +193,12 @@ function SessionResults({
         </>
       )}
       <div className="mt-4">
-        <MatchResultsSummary matches={data.matches} teams={data.teams} />
+        <MatchResultsSummary
+          sessionName={session.name}
+          startsAt={session.startsAt}
+          matches={data.matches}
+          teams={data.teams}
+        />
       </div>
     </>
   );

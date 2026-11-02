@@ -1,4 +1,7 @@
 ﻿using Hallen.Api.Extensions;
+using Hallen.Database.Data;
+using Hallen.Application.SportsGroups;
+using Microsoft.EntityFrameworkCore;
 using Hallen.Application.GameSessions;
 using Hallen.Common.DTOs.GameSessions;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +12,7 @@ namespace Hallen.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/game-sessions")]
-public class GameSessionsController(IGameSessionService gameSessionService) : ControllerBase
+public class GameSessionsController(IGameSessionService gameSessionService, HallenDbContext db, ISportsGroupAuthorizationService authorization) : ControllerBase
 {
 
     [HttpGet("/api/sports-groups/{sportsGroupId:guid}/game-sessions")]
@@ -77,6 +80,19 @@ public class GameSessionsController(IGameSessionService gameSessionService) : Co
         }
 
         return NoContent();
+    }
+
+    public record SessionStatusRequest(bool IsClosed);
+
+    [HttpPut("{id:guid}/status")]
+    public async Task<IActionResult> SetStatus(Guid id, SessionStatusRequest request)
+    {
+        if (!await authorization.CanManageGameSessionAsync(id, User.GetUserId())) return Forbid();
+        var session = await db.GameSessions.FindAsync(id);
+        if (session is null) return NotFound();
+        session.IsClosed = request.IsClosed;
+        await db.SaveChangesAsync();
+        return Ok(new { session.IsClosed });
     }
 
     [HttpDelete("{id:guid}")]

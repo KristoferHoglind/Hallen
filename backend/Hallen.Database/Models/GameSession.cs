@@ -8,6 +8,8 @@ public class GameSession
 
     public DateTimeOffset StartsAt { get; set; }
 
+    public bool IsClosed { get; set; }
+
     public int NumberOfTeams { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }

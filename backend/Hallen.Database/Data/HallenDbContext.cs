@@ -20,6 +20,8 @@ public class HallenDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Gu
 
     public DbSet<Player> Players => Set<Player>();
 
+    public DbSet<SessionTemplate> SessionTemplates => Set<SessionTemplate>();
+
     public DbSet<GameSession> GameSessions => Set<GameSession>();
 
     public DbSet<GameTeam> GameTeams => Set<GameTeam>();
@@ -41,6 +43,14 @@ public class HallenDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Gu
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<SessionTemplate>(entity =>
+        {
+            entity.ToTable("session_templates");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(200);
+            entity.Property(x => x.Time).HasMaxLength(5);
+            entity.HasOne(x => x.SportsGroup).WithMany().HasForeignKey(x => x.SportsGroupId).OnDelete(DeleteBehavior.Cascade);
+        });
 
         modelBuilder.Entity<AppUser>().Property(user => user.CanCreateGroups).HasDefaultValue(false);
 

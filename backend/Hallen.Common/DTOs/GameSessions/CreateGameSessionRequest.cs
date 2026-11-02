@@ -8,5 +8,7 @@ public class CreateGameSessionRequest
 
     public int NumberOfTeams { get; set; }
 
+    public List<string>? TeamNames { get; set; }
+
     public List<Guid> PlayerIds { get; set; } = [];
 }

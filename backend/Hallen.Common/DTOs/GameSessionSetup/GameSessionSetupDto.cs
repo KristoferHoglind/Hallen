@@ -2,6 +2,8 @@
 
 public class GameSessionSetupDto
 {
+    public bool IsClosed { get; set; }
+
     public Guid GameSessionId { get; set; }
 
     public string GameSessionName { get; set; } = string.Empty;

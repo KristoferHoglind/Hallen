@@ -15,12 +15,16 @@ type GameMatchesPanelProps = {
   gameSessionId: string;
   teams: GameSessionTeam[];
   canManage: boolean;
+  sessionName?: string;
+  startsAt?: string;
   view?: "matches" | "results";
   onEditRequest?: () => void;
 };
 
 export function GameMatchesPanel({
   gameSessionId,
+  sessionName,
+  startsAt,
   teams,
   canManage,
   view = "matches",
@@ -200,6 +204,8 @@ export function GameMatchesPanel({
         </div>
         <div hidden={view !== "results"}>
           <MatchResultsSummary
+            sessionName={sessionName}
+            startsAt={startsAt}
             matches={matches}
             teams={sortedTeams}
             isLoading={isLoading}

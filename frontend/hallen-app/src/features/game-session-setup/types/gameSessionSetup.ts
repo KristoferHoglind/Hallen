@@ -12,6 +12,7 @@ export type GameSessionTeam = {
 };
 
 export type GameSessionSetup = {
+  isClosed: boolean;
   gameSessionId: string;
   gameSessionName: string;
   startsAt: string;

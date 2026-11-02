@@ -34,7 +34,8 @@ public class GameSessionSetupService(HallenDbContext dbContext, ISportsGroupAuth
         if (!await sportsGroupAuthorizationService.CanManageGameSessionAsync(gameSessionId, appUserId))
             return null;
 
-        await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        await using var transaction = dbContext.Database.CurrentTransaction is null
+            ? await dbContext.Database.BeginTransactionAsync() : null;
         var session = await dbContext.GameSessions
             .FromSqlInterpolated($"SELECT * FROM game_sessions WHERE id = {gameSessionId} FOR UPDATE")
             .SingleOrDefaultAsync();
@@ -57,7 +58,7 @@ public class GameSessionSetupService(HallenDbContext dbContext, ISportsGroupAuth
             Id = Guid.NewGuid(), GameSessionId = gameSessionId, PlayerId = playerId, CreatedAt = DateTimeOffset.UtcNow
         }));
         await dbContext.SaveChangesAsync();
-        await transaction.CommitAsync();
+        if (transaction is not null) await transaction.CommitAsync();
         return await BuildSetupDtoAsync(gameSessionId);
     }
 
@@ -116,7 +117,8 @@ public class GameSessionSetupService(HallenDbContext dbContext, ISportsGroupAuth
             return null;
         }
 
-        await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        await using var transaction = dbContext.Database.CurrentTransaction is null
+            ? await dbContext.Database.BeginTransactionAsync() : null;
 
         var existingTeamPlayers = await dbContext.GameTeamPlayers
             .Include(x => x.GameTeam)
@@ -148,7 +150,7 @@ public class GameSessionSetupService(HallenDbContext dbContext, ISportsGroupAuth
         dbContext.GameTeamPlayers.AddRange(gameTeamPlayers);
 
         await dbContext.SaveChangesAsync();
-        await transaction.CommitAsync();
+        if (transaction is not null) await transaction.CommitAsync();
 
         return await BuildSetupDtoAsync(gameSessionId);
     }
@@ -189,7 +191,8 @@ public class GameSessionSetupService(HallenDbContext dbContext, ISportsGroupAuth
             return null;
         }
 
-        await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        await using var transaction = dbContext.Database.CurrentTransaction is null
+            ? await dbContext.Database.BeginTransactionAsync() : null;
 
         await ClearCurrentTeamSetupAsync(gameSessionId);
 
@@ -208,7 +211,7 @@ public class GameSessionSetupService(HallenDbContext dbContext, ISportsGroupAuth
         await GetOrCreateTeamsAsync(gameSessionId, request.NumberOfTeams);
 
         await dbContext.SaveChangesAsync();
-        await transaction.CommitAsync();
+        if (transaction is not null) await transaction.CommitAsync();
 
         return await BuildSetupDtoAsync(gameSessionId);
     }
@@ -219,7 +222,8 @@ public class GameSessionSetupService(HallenDbContext dbContext, ISportsGroupAuth
             return null;
         if (request.PlayerIds is null || request.PlayerIds.Count == 0) return null;
 
-        await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        await using var transaction = dbContext.Database.CurrentTransaction is null
+            ? await dbContext.Database.BeginTransactionAsync() : null;
         var session = await dbContext.GameSessions
             .FromSqlInterpolated($"SELECT * FROM game_sessions WHERE id = {gameSessionId} FOR UPDATE")
             .SingleOrDefaultAsync();
@@ -244,7 +248,7 @@ public class GameSessionSetupService(HallenDbContext dbContext, ISportsGroupAuth
             }));
         }
         await dbContext.SaveChangesAsync();
-        await transaction.CommitAsync();
+        if (transaction is not null) await transaction.CommitAsync();
         return await BuildSetupDtoAsync(gameSessionId);
     }
 
@@ -386,6 +390,7 @@ public class GameSessionSetupService(HallenDbContext dbContext, ISportsGroupAuth
 
         return new GameSessionSetupDto
         {
+            IsClosed = gameSession.IsClosed,
             GameSessionId = gameSession.Id,
             GameSessionName = gameSession.Name,
             StartsAt = gameSession.StartsAt,

@@ -1,3 +1,4 @@
+import { PlayerStatistics } from "./PlayerStatistics";
 import { GroupSessionResults } from "./GroupSessionResults";
 import { useState } from "react";
 import { Tab, Tabs } from "react-bootstrap";
@@ -50,6 +51,9 @@ export function GroupContents({
           {tab === "results" && (
             <GroupSessionResults sportsGroupId={group.id} />
           )}
+        </Tab>
+        <Tab eventKey="personal" title="Personlig statistik">
+          {tab === "personal" && <PlayerStatistics sportsGroupId={group.id} />}
         </Tab>
       </Tabs>
     </>

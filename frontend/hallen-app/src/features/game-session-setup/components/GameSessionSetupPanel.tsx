@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Alert, Button, Col, Nav, Row, Spinner } from "react-bootstrap";
+import { Alert, Button, Col, Modal, Nav, Row, Spinner } from "react-bootstrap";
 import { teamColor } from "../../../shared/utils/teamColor";
 import { GameMatchesPanel } from "../../game-matches/components/GameMatchesPanel";
 import { EditSessionPlayersModal } from "./EditSessionPlayersModal";
@@ -11,15 +11,18 @@ type GameSessionSetupPanelProps = {
   gameSessionId: string;
   canManage: boolean;
   onBack?: () => void;
+  onStatusChanged?: (isClosed: boolean) => void;
   onParticipantsChanged?: (count: number) => void;
 };
 
 export function GameSessionSetupPanel({
   gameSessionId,
-  canManage,
+  canManage: canManageSession,
   onBack,
   onParticipantsChanged,
+  onStatusChanged,
 }: GameSessionSetupPanelProps) {
+  const [confirmClose, setConfirmClose] = useState(false);
   const [moveAnnouncement, setMoveAnnouncement] = useState("");
   const [editingParticipants, setEditingParticipants] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
@@ -27,6 +30,7 @@ export function GameSessionSetupPanel({
   const [step, setStep] = useState("teams");
   const {
     setup,
+    setSessionClosed,
     isLoading,
     isSaving,
     errorMessage,
@@ -36,6 +40,8 @@ export function GameSessionSetupPanel({
     resetSetupPlayers,
     movePlayers,
   } = useGameSessionSetup(gameSessionId);
+
+  const canManage = canManageSession && !setup?.isClosed;
 
   const selectedParticipants =
     setup?.participants.filter((player) =>
@@ -92,6 +98,88 @@ export function GameSessionSetupPanel({
 
   return (
     <section className="setup-view">
+      {setup && (
+        <div className="d-flex flex-wrap align-items-center gap-3 mb-3">
+          <span
+            className={`badge ${setup.isClosed ? "bg-secondary" : "bg-success"}`}
+          >
+            <i
+              className={`bi ${setup.isClosed ? "bi-lock-fill" : "bi-unlock"} me-1`}
+              aria-hidden="true"
+            />
+            {setup.isClosed ? "Avslutad session" : "Öppen session"}
+          </span>
+          {canManageSession && (
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              disabled={isSaving}
+              onClick={async () => {
+                if (!setup.isClosed) {
+                  setConfirmClose(true);
+                  return;
+                }
+                if (await setSessionClosed(false)) onStatusChanged?.(false);
+              }}
+            >
+              {setup.isClosed ? "Öppna för redigering" : "Avsluta session"}
+            </Button>
+          )}
+          {setup.isClosed && (
+            <span className="small text-muted">
+              Resultaten är sparade. Sessionen är låst för redigering.
+            </span>
+          )}
+        </div>
+      )}
+      {errorMessage && step !== "teams" && (
+        <Alert variant="danger">{errorMessage}</Alert>
+      )}
+      <Modal
+        show={confirmClose}
+        onHide={() => {
+          if (!isSaving) setConfirmClose(false);
+        }}
+        centered
+      >
+        <Modal.Header closeButton={!isSaving}>
+          <Modal.Title>Avsluta sessionen?</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Spara pågående match innan du avslutar. Osparade poäng sparas inte.
+          Lag, deltagare och matcher låses. Ägare och administratörer kan öppna
+          sessionen för redigering igen när som helst.
+          {errorMessage && (
+            <Alert variant="danger" className="mt-2">
+              {errorMessage}
+            </Alert>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="outline-secondary"
+            disabled={isSaving}
+            onClick={() => setConfirmClose(false)}
+          >
+            Avbryt
+          </Button>
+          <Button
+            disabled={isSaving}
+            onClick={async () => {
+              if (await setSessionClosed(true)) {
+                setConfirmClose(false);
+                setSelectionMode(false);
+                setSelectedPlayerIds([]);
+                onStatusChanged?.(true);
+                setStep("results");
+              }
+            }}
+          >
+            {isSaving ? "Avslutar…" : "Avsluta session"}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
       {editingParticipants && setup && canManage && (
         <EditSessionPlayersModal
           sportsGroupId={setup.sportsGroupId}
@@ -180,7 +268,7 @@ export function GameSessionSetupPanel({
           </Button>
         )}
 
-        {!canManage && (
+        {!canManageSession && (
           <Alert variant="secondary" className="mb-3">
             Du kan se laguppställningen, men bara ägare och administratörer kan
             ändra lag eller flytta spelare.
@@ -351,6 +439,8 @@ export function GameSessionSetupPanel({
             view={step === "results" ? "results" : "matches"}
             onEditRequest={() => setStep("matches")}
             gameSessionId={gameSessionId}
+            sessionName={setup.gameSessionName}
+            startsAt={setup.startsAt}
             teams={setup.teams}
             canManage={canManage}
           />

@@ -1,3 +1,5 @@
+import { SessionTemplates } from "./SessionTemplates";
+import type { SessionTemplate } from "../api/sessionTemplatesApi";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Alert, Button, Card, Spinner } from "react-bootstrap";
@@ -19,6 +21,7 @@ export function GameSessionsPanel({
   canManage,
 }: GameSessionsPanelProps) {
   const {
+    updateSessionStatus,
     updateParticipantCount,
     gameSessions,
     activePlayers,
@@ -31,6 +34,8 @@ export function GameSessionsPanel({
     removeGameSession,
   } = useGameSessions(sportsGroupId);
 
+  const [initialTemplate, setInitialTemplate] =
+    useState<SessionTemplate | null>(null);
   const [showMissingPlayers, setShowMissingPlayers] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [selectedGameSessionId, setSelectedGameSessionId] = useState<
@@ -44,6 +49,7 @@ export function GameSessionsPanel({
     useState<GameSession | null>(null);
 
   async function handleCreateGameSession(input: {
+    teamNames?: string[];
     name: string;
     startsAt: string;
     numberOfTeams: number;
@@ -94,6 +100,7 @@ export function GameSessionsPanel({
                     return;
                   }
                   setShowMissingPlayers(false);
+                  setInitialTemplate(null);
                   setIsCreating(true);
                 }}
               >
@@ -112,6 +119,20 @@ export function GameSessionsPanel({
                 </Alert.Link>
               </Alert>
             )}
+            {canManage && !isCreating && !isLoading && (
+              <SessionTemplates
+                groupId={sportsGroupId}
+                onUse={(template) => {
+                  if (!activePlayers.length) {
+                    setShowMissingPlayers(true);
+                    return;
+                  }
+                  setInitialTemplate(template);
+                  setShowMissingPlayers(false);
+                  setIsCreating(true);
+                }}
+              />
+            )}
             {canManage && isCreating && (
               <>
                 <Button
@@ -124,6 +145,7 @@ export function GameSessionsPanel({
                   Till spelsessioner
                 </Button>
                 <CreateGameSessionForm
+                  initialTemplate={initialTemplate}
                   activePlayers={activePlayers}
                   isSaving={isSaving}
                   onCreateGameSession={handleCreateGameSession}
@@ -189,9 +211,19 @@ export function GameSessionsPanel({
               }
             </span>
           </div>
+          {canManage && (
+            <SessionTemplates
+              key={selectedGameSessionId}
+              groupId={sportsGroupId}
+              source={gameSessions.find((s) => s.id === selectedGameSessionId)}
+            />
+          )}
           <GameSessionSetupPanel
             onBack={() => setSelectedGameSessionId(null)}
             key={selectedGameSessionId}
+            onStatusChanged={(closed) =>
+              updateSessionStatus(selectedGameSessionId, closed)
+            }
             onParticipantsChanged={(count) =>
               updateParticipantCount(selectedGameSessionId, count)
             }

@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../../config/api";
 import { useEffect, useState } from "react";
 import {
   getGameSessionSetup,
@@ -45,6 +46,33 @@ export function useGameSessionSetup(gameSessionId: string) {
       isActive = false;
     };
   }, [gameSessionId]);
+
+  async function setSessionClosed(isClosed: boolean) {
+    try {
+      setIsSaving(true);
+      setErrorMessage(null);
+      const response = await fetch(
+        `${API_BASE_URL}/api/game-sessions/${gameSessionId}/status`,
+        {
+          method: "PUT",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isClosed }),
+        },
+      );
+      if (!response.ok) throw new Error();
+      const status: { isClosed: boolean } = await response.json();
+      setSetup((current) =>
+        current ? { ...current, isClosed: status.isClosed } : current,
+      );
+      return true;
+    } catch {
+      setErrorMessage("Kunde inte ändra sessionsstatus. Försök igen.");
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   async function updateTeamName(gameTeamId: string, name: string) {
     if (!name.trim()) {
@@ -136,6 +164,7 @@ export function useGameSessionSetup(gameSessionId: string) {
   }
 
   return {
+    setSessionClosed,
     setup,
     isLoading,
     isSaving,

@@ -25,6 +25,7 @@ public class GameSessionService(HallenDbContext dbContext, ISportsGroupAuthoriza
             .Select(gameSession => new GameSessionDto
             {
                 Id = gameSession.Id,
+                IsClosed = gameSession.IsClosed,
                 Name = gameSession.Name,
                 StartsAt = gameSession.StartsAt,
                 CreatedAt = gameSession.CreatedAt,
@@ -41,6 +42,7 @@ public class GameSessionService(HallenDbContext dbContext, ISportsGroupAuthoriza
             .Where(gameSession => gameSession.Id == id)
             .Select(gameSession => new
             {
+                gameSession.IsClosed,
                 gameSession.Id,
                 gameSession.Name,
                 gameSession.StartsAt,
@@ -67,6 +69,7 @@ public class GameSessionService(HallenDbContext dbContext, ISportsGroupAuthoriza
         return new GameSessionDto
         {
             Id = gameSession.Id,
+            IsClosed = gameSession.IsClosed,
             Name = gameSession.Name,
             StartsAt = gameSession.StartsAt,
             CreatedAt = gameSession.CreatedAt,
@@ -88,7 +91,8 @@ public class GameSessionService(HallenDbContext dbContext, ISportsGroupAuthoriza
 
         if (
             string.IsNullOrWhiteSpace(request.Name) ||
-            request.NumberOfTeams < 2 ||
+            request.NumberOfTeams < 2 || request.NumberOfTeams > 32 ||
+            (request.TeamNames != null && (request.TeamNames.Count != request.NumberOfTeams || request.TeamNames.Any(name => string.IsNullOrWhiteSpace(name) || name.Length > 100))) ||
             request.PlayerIds.Count == 0)
         {
             return null;
@@ -110,7 +114,8 @@ public class GameSessionService(HallenDbContext dbContext, ISportsGroupAuthoriza
             return null;
         }
 
-        await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        await using var transaction = dbContext.Database.CurrentTransaction is null
+            ? await dbContext.Database.BeginTransactionAsync() : null;
 
         var gameSession = new GameSession
         {
@@ -141,7 +146,7 @@ public class GameSessionService(HallenDbContext dbContext, ISportsGroupAuthoriza
             {
                 Id = Guid.NewGuid(),
                 GameSessionId = gameSession.Id,
-                Name = $"Lag {index}",
+                Name = request.TeamNames?[index - 1].Trim() ?? $"Lag {index}",
                 CreatedAt = DateTimeOffset.UtcNow
             })
             .ToList();
@@ -149,7 +154,7 @@ public class GameSessionService(HallenDbContext dbContext, ISportsGroupAuthoriza
         dbContext.GameTeams.AddRange(teams);
 
         await dbContext.SaveChangesAsync();
-        await transaction.CommitAsync();
+        if (transaction is not null) await transaction.CommitAsync();
 
         return await GetGameSessionAsync(gameSession.Id, appUserId);
     }

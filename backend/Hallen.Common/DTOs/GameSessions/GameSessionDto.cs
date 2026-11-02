@@ -12,6 +12,8 @@ public class GameSessionDto
 
     public Guid SportsGroupId { get; set; }
 
+    public bool IsClosed { get; set; }
+
     public int NumberOfTeams { get; set; }
 
     public int ParticipantCount { get; set; }
