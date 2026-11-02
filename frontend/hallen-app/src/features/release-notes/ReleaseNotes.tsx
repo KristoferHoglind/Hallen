@@ -30,6 +30,7 @@ export function ReleaseNotes({ userId }: { userId: string }) {
         as="button"
         type="button"
         eventKey="release-notes"
+        className="text-start"
         active={false}
         onClick={() => setManuallyOpened(true)}
       >
