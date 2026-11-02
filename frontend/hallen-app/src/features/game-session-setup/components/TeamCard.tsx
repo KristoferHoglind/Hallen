@@ -1,5 +1,5 @@
 import { teamColor } from "../../../shared/utils/teamColor";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Badge, Button, Form } from "react-bootstrap";
 import type { GameSessionParticipant } from "../types/gameSessionSetup";
 
@@ -38,6 +38,7 @@ export function TeamCard({
   const [isDragOver, setIsDragOver] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
+  const isSavingName = useRef(false);
   useEffect(() => {
     const clearDrag = () => setIsDragOver(false);
     document.addEventListener("dragend", clearDrag);
@@ -45,7 +46,7 @@ export function TeamCard({
   }, []);
 
   async function handleSaveName() {
-    if (!teamId || !onUpdateTeamName) {
+    if (!teamId || !onUpdateTeamName || isSavingName.current || isSaving) {
       return;
     }
 
@@ -57,9 +58,19 @@ export function TeamCard({
       return;
     }
 
-    const wasSaved = await onUpdateTeamName(teamId, trimmedName);
-    if (wasSaved) {
+    if (trimmedName === title) {
       setIsEditingName(false);
+      return;
+    }
+
+    isSavingName.current = true;
+    try {
+      const wasSaved = await onUpdateTeamName(teamId, trimmedName);
+      if (wasSaved) {
+        setIsEditingName(false);
+      }
+    } finally {
+      isSavingName.current = false;
     }
   }
 
@@ -104,10 +115,13 @@ export function TeamCard({
             size="sm"
             value={nameInput}
             disabled={isSaving}
+            aria-label="Lagnamn"
             onChange={(event) => setNameInput(event.target.value)}
+            onBlur={() => void handleSaveName()}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
-                handleSaveName();
+                event.preventDefault();
+                void handleSaveName();
               }
 
               if (event.key === "Escape") {
@@ -128,6 +142,7 @@ export function TeamCard({
                 <Button
                   variant="link"
                   size="sm"
+                  onMouseDown={(event) => event.preventDefault()}
                   onClick={handleSaveName}
                   disabled={isSaving}
                   aria-label="Spara lagnamn"
