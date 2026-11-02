@@ -1,3 +1,4 @@
+import { ReleaseNotes } from "./features/release-notes/ReleaseNotes";
 import { HomePage } from "./features/home/HomePage";
 import { AccountsPage } from "./features/accounts/AccountsPage";
 import { ResetPasswordPage } from "./features/password-recovery/PasswordRecovery";
@@ -94,7 +95,7 @@ function App() {
           />
           Hallen
         </Navbar.Brand>
-        <Navbar.Toggle aria-controls="main-navigation" aria-label="Visa meny" />
+        <Navbar.Toggle aria-controls="main-navigation" label="Visa meny" />
         <Navbar.Collapse id="main-navigation">
           <Nav className="me-auto">
             <Nav.Link as={NavLink} to="/" end eventKey="/">
@@ -110,6 +111,9 @@ function App() {
               <Nav.Link as={NavLink} to="/konton" eventKey="/konton">
                 Konton och lösenord
               </Nav.Link>
+            )}
+            {currentUser && (
+              <ReleaseNotes key={currentUser.id} userId={currentUser.id} />
             )}
           </Nav>
           <div className="navigation-account">

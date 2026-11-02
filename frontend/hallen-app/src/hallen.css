@@ -44,11 +44,13 @@ body {
   color: #526159;
   background: #edf0ea !important;
 }
-.hallen-app .btn {
+.hallen-app .btn,
+.release-notes .btn {
   --bs-btn-border-radius: 0.6rem;
   font-weight: 600;
 }
-.hallen-app .btn-primary {
+.hallen-app .btn-primary,
+.release-notes .btn-primary {
   --bs-btn-bg: #17614c;
   --bs-btn-border-color: #17614c;
   --bs-btn-hover-bg: #104734;
