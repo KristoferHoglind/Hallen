@@ -29,6 +29,38 @@ public class GameSessionSetupService(HallenDbContext dbContext, ISportsGroupAuth
         return await BuildSetupDtoAsync(gameSessionId);
     }
 
+    public async Task<GameSessionSetupDto?> UpdatePlayersAsync(Guid gameSessionId, UpdateSessionPlayersRequest request, Guid appUserId)
+    {
+        if (!await sportsGroupAuthorizationService.CanManageGameSessionAsync(gameSessionId, appUserId))
+            return null;
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        var session = await dbContext.GameSessions
+            .FromSqlInterpolated($"SELECT * FROM game_sessions WHERE id = {gameSessionId} FOR UPDATE")
+            .SingleOrDefaultAsync();
+        if (session is null || request.PlayerIds is null) return null;
+
+        var current = await dbContext.GameSessionPlayers.Where(x => x.GameSessionId == gameSessionId).ToListAsync();
+        var selected = request.PlayerIds.Distinct().ToHashSet();
+        var added = selected.Except(current.Select(x => x.PlayerId)).ToList();
+        var validAdded = await dbContext.Players.CountAsync(x => added.Contains(x.Id) && x.SportsGroupId == session.SportsGroupId && x.IsActive);
+        if (validAdded != added.Count) return null;
+
+        var removed = current.Where(x => !selected.Contains(x.PlayerId)).ToList();
+        var removedIds = removed.Select(x => x.PlayerId).ToList();
+        var assignments = await dbContext.GameTeamPlayers
+            .Where(x => x.GameTeam.GameSessionId == gameSessionId && removedIds.Contains(x.PlayerId)).ToListAsync();
+        dbContext.GameTeamPlayers.RemoveRange(assignments);
+        dbContext.GameSessionPlayers.RemoveRange(removed);
+        dbContext.GameSessionPlayers.AddRange(added.Select(playerId => new GameSessionPlayer
+        {
+            Id = Guid.NewGuid(), GameSessionId = gameSessionId, PlayerId = playerId, CreatedAt = DateTimeOffset.UtcNow
+        }));
+        await dbContext.SaveChangesAsync();
+        await transaction.CommitAsync();
+        return await BuildSetupDtoAsync(gameSessionId);
+    }
+
     public async Task<GameSessionSetupDto?> ResetPlayersAsync(Guid gameSessionId, Guid appUserId)
     {
         var canManage = await sportsGroupAuthorizationService.CanManageGameSessionAsync(gameSessionId, appUserId);
@@ -178,6 +210,41 @@ public class GameSessionSetupService(HallenDbContext dbContext, ISportsGroupAuth
         await dbContext.SaveChangesAsync();
         await transaction.CommitAsync();
 
+        return await BuildSetupDtoAsync(gameSessionId);
+    }
+
+    public async Task<GameSessionSetupDto?> MovePlayersToTeamAsync(Guid gameSessionId, MovePlayersToTeamRequest request, Guid appUserId)
+    {
+        if (!await sportsGroupAuthorizationService.CanManageGameSessionAsync(gameSessionId, appUserId))
+            return null;
+        if (request.PlayerIds is null || request.PlayerIds.Count == 0) return null;
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        var session = await dbContext.GameSessions
+            .FromSqlInterpolated($"SELECT * FROM game_sessions WHERE id = {gameSessionId} FOR UPDATE")
+            .SingleOrDefaultAsync();
+        if (session is null) return null;
+
+        var playerIds = request.PlayerIds.Distinct().ToList();
+        if (await dbContext.GameSessionPlayers.CountAsync(x => x.GameSessionId == gameSessionId && playerIds.Contains(x.PlayerId)) != playerIds.Count)
+            return null;
+        if (request.GameTeamId is not null && !await dbContext.GameTeams.AnyAsync(x => x.Id == request.GameTeamId && x.GameSessionId == gameSessionId))
+            return null;
+
+        var assignments = await dbContext.GameTeamPlayers
+            .Where(x => x.GameTeam.GameSessionId == gameSessionId && playerIds.Contains(x.PlayerId))
+            .ToListAsync();
+        var movedIds = playerIds.Where(id => !assignments.Any(x => x.PlayerId == id && x.GameTeamId == request.GameTeamId)).ToList();
+        dbContext.GameTeamPlayers.RemoveRange(assignments.Where(x => movedIds.Contains(x.PlayerId)));
+        if (request.GameTeamId is Guid teamId)
+        {
+            dbContext.GameTeamPlayers.AddRange(movedIds.Select(playerId => new GameTeamPlayer
+            {
+                Id = Guid.NewGuid(), GameTeamId = teamId, PlayerId = playerId, CreatedAt = DateTimeOffset.UtcNow
+            }));
+        }
+        await dbContext.SaveChangesAsync();
+        await transaction.CommitAsync();
         return await BuildSetupDtoAsync(gameSessionId);
     }
 

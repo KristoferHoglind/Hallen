@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import {
   getGameSessionSetup,
-  movePlayerToTeam,
+  movePlayersToTeam,
   randomizeTeams,
   resetPlayers,
+  updateSessionPlayers,
 } from "../api/gameSessionSetupApi";
 import type { GameSessionSetup } from "../types/gameSessionSetup";
 import { updateGameTeam } from "../../game-teams/api/gameTeamsApi";
@@ -80,6 +81,20 @@ export function useGameSessionSetup(gameSessionId: string) {
     }
   }
 
+  async function updateParticipants(playerIds: string[]) {
+    try {
+      setIsSaving(true);
+      setErrorMessage(null);
+      setSetup(await updateSessionPlayers(gameSessionId, playerIds));
+      return true;
+    } catch {
+      setErrorMessage("Kunde inte uppdatera deltagarna. Försök igen.");
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function resetSetupPlayers() {
     try {
       setIsSaving(true);
@@ -106,19 +121,14 @@ export function useGameSessionSetup(gameSessionId: string) {
     }
   }
 
-  async function movePlayer(playerId: string, gameTeamId: string | null) {
+  async function movePlayers(playerIds: string[], gameTeamId: string | null) {
     try {
       setIsSaving(true);
       setErrorMessage(null);
-
-      const updatedSetup = await movePlayerToTeam(gameSessionId, playerId, {
-        gameTeamId,
-      });
-
-      setSetup(updatedSetup);
+      setSetup(await movePlayersToTeam(gameSessionId, playerIds, gameTeamId));
       return true;
     } catch {
-      setErrorMessage("Kunde inte flytta spelaren.");
+      setErrorMessage("Kunde inte flytta spelarna. Försök igen.");
       return false;
     } finally {
       setIsSaving(false);
@@ -131,8 +141,9 @@ export function useGameSessionSetup(gameSessionId: string) {
     isSaving,
     errorMessage,
     updateTeamName,
+    updateParticipants,
     randomizeSetupTeams,
     resetSetupPlayers,
-    movePlayer,
+    movePlayers,
   };
 }

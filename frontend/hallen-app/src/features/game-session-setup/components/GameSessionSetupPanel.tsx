@@ -1,30 +1,29 @@
 import { useMemo, useState } from "react";
 import { Alert, Button, Col, Nav, Row, Spinner } from "react-bootstrap";
+import { teamColor } from "../../../shared/utils/teamColor";
 import { GameMatchesPanel } from "../../game-matches/components/GameMatchesPanel";
+import { EditSessionPlayersModal } from "./EditSessionPlayersModal";
 import { SetupSummaryCard } from "./SetupSummaryCard";
 import { TeamCard } from "./TeamCard";
-import { PlayerMoveMenu } from "./PlayerMoveMenu";
-import type { GameSessionParticipant } from "../types/gameSessionSetup";
 import { useGameSessionSetup } from "../hooks/useGameSessionSetup";
 
 type GameSessionSetupPanelProps = {
   gameSessionId: string;
   canManage: boolean;
   onBack?: () => void;
+  onParticipantsChanged?: (count: number) => void;
 };
 
 export function GameSessionSetupPanel({
   gameSessionId,
   canManage,
   onBack,
+  onParticipantsChanged,
 }: GameSessionSetupPanelProps) {
-  const [movingPlayer, setMovingPlayer] = useState<{
-    player: GameSessionParticipant;
-    target: HTMLButtonElement;
-  } | null>(null);
-  const [draggedPlayer, setDraggedPlayer] =
-    useState<GameSessionParticipant | null>(null);
   const [moveAnnouncement, setMoveAnnouncement] = useState("");
+  const [editingParticipants, setEditingParticipants] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
   const [step, setStep] = useState("teams");
   const {
     setup,
@@ -32,21 +31,37 @@ export function GameSessionSetupPanel({
     isSaving,
     errorMessage,
     updateTeamName,
+    updateParticipants,
     randomizeSetupTeams,
     resetSetupPlayers,
-    movePlayer,
+    movePlayers,
   } = useGameSessionSetup(gameSessionId);
 
-  async function handleMove(
-    player: GameSessionParticipant,
-    teamId: string | null,
-  ) {
-    if (isSaving || player.gameTeamId === teamId) return;
-    const wasMoved = await movePlayer(player.playerId, teamId);
-    if (wasMoved) {
-      setMovingPlayer(null);
+  const selectedParticipants =
+    setup?.participants.filter((player) =>
+      selectedPlayerIds.includes(player.playerId),
+    ) ?? [];
+
+  function toggleSelectedPlayer(playerId: string) {
+    setSelectedPlayerIds((current) =>
+      current.includes(playerId)
+        ? current.filter((id) => id !== playerId)
+        : [...current, playerId],
+    );
+  }
+
+  async function handleMoveSelected(teamId: string | null) {
+    if (isSaving || !selectedParticipants.length) return;
+    const count = selectedParticipants.length;
+    if (
+      await movePlayers(
+        selectedParticipants.map((player) => player.playerId),
+        teamId,
+      )
+    ) {
+      setSelectedPlayerIds([]);
       setMoveAnnouncement(
-        `${player.playerName} flyttades till ${setup?.teams.find((team) => team.id === teamId)?.name ?? "Ej placerade"}.`,
+        `${count} spelare flyttades till ${setup?.teams.find((team) => team.id === teamId)?.name ?? "Ej placerade"}.`,
       );
       requestAnimationFrame(() =>
         document
@@ -54,12 +69,6 @@ export function GameSessionSetupPanel({
           ?.focus(),
       );
     }
-  }
-
-  function handleDrop(teamId: string | null) {
-    const player = draggedPlayer;
-    setDraggedPlayer(null);
-    if (player) void handleMove(player, teamId);
   }
 
   const unassignedParticipants = useMemo(() => {
@@ -83,29 +92,27 @@ export function GameSessionSetupPanel({
 
   return (
     <section className="setup-view">
+      {editingParticipants && setup && canManage && (
+        <EditSessionPlayersModal
+          sportsGroupId={setup.sportsGroupId}
+          participants={setup.participants}
+          isSaving={isSaving}
+          onClose={() => setEditingParticipants(false)}
+          onSave={async (playerIds) => {
+            const saved = await updateParticipants(playerIds);
+            if (saved) {
+              onParticipantsChanged?.(playerIds.length);
+              setSelectedPlayerIds((current) =>
+                current.filter((id) => playerIds.includes(id)),
+              );
+            }
+            return saved;
+          }}
+        />
+      )}
       <div className="visually-hidden" role="status">
         {moveAnnouncement}
       </div>
-      {movingPlayer && setup && (
-        <PlayerMoveMenu
-          player={movingPlayer.player}
-          target={movingPlayer.target}
-          teams={setup.teams}
-          isSaving={isSaving}
-          errorMessage={errorMessage}
-          onClose={() => {
-            if (!isSaving) {
-              const target = movingPlayer.target;
-              setMovingPlayer(null);
-              requestAnimationFrame(() => {
-                if (target.isConnected) target.focus();
-              });
-            }
-          }}
-          onMove={(teamId) => handleMove(movingPlayer.player, teamId)}
-        />
-      )}
-
       <Nav
         variant="underline"
         className="workflow-steps mb-4"
@@ -161,6 +168,18 @@ export function GameSessionSetupPanel({
           </div>
         </div>
 
+        {canManage && setup && (
+          <Button
+            variant="outline-primary"
+            className="mb-3"
+            disabled={isSaving}
+            onClick={() => setEditingParticipants(true)}
+          >
+            <i className="bi bi-person-plus me-2" aria-hidden="true" />
+            Ändra deltagare
+          </Button>
+        )}
+
         {!canManage && (
           <Alert variant="secondary" className="mb-3">
             Du kan se laguppställningen, men bara ägare och administratörer kan
@@ -190,28 +209,105 @@ export function GameSessionSetupPanel({
           <div className="mt-4">
             <h6 className="mb-2">Lag</h6>
             {canManage && (
-              <p className="text-muted small mb-3">
-                Klicka på en spelare för att byta lag.
-                <span className="d-none d-md-inline">
-                  {" "}
-                  Du kan också dra spelare mellan lagen.
-                </span>
-              </p>
+              <div className="mb-3">
+                <Button
+                  variant={selectionMode ? "primary" : "outline-primary"}
+                  disabled={isSaving}
+                  aria-pressed={selectionMode}
+                  onClick={() => {
+                    setSelectionMode((current) => !current);
+                    setSelectedPlayerIds([]);
+                  }}
+                >
+                  <i className="bi bi-ui-checks me-2" aria-hidden="true" />
+                  {selectionMode ? "Avsluta markering" : "Markera spelare"}
+                </Button>
+                <p className="text-muted small mt-2 mb-0">
+                  {selectionMode
+                    ? "Markera spelarna du vill flytta och välj sedan ett lag."
+                    : "Välj Markera spelare för att flytta en eller flera spelare till ett lag."}
+                </p>
+              </div>
+            )}
+
+            {canManage && selectionMode && (
+              <div
+                className="mb-3"
+                role="group"
+                aria-label="Flytta markerade spelare"
+              >
+                <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
+                  <strong aria-live="polite">
+                    {selectedParticipants.length} markerade
+                  </strong>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    disabled={isSaving || !setup.participants.length}
+                    onClick={() =>
+                      setSelectedPlayerIds(
+                        setup.participants.map((player) => player.playerId),
+                      )
+                    }
+                  >
+                    Markera alla
+                  </Button>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    disabled={isSaving || !selectedParticipants.length}
+                    onClick={() => setSelectedPlayerIds([])}
+                  >
+                    Avmarkera alla
+                  </Button>
+                </div>
+                <div className="d-flex flex-wrap align-items-center gap-2">
+                  <span className="small text-muted">Flytta till:</span>
+                  {[...setup.teams, { id: null, name: "Ej placerade" }].map(
+                    (team) => (
+                      <Button
+                        key={team.id ?? "unassigned"}
+                        variant="outline-primary"
+                        disabled={
+                          isSaving ||
+                          !selectedParticipants.some(
+                            (player) => player.gameTeamId !== team.id,
+                          )
+                        }
+                        onClick={() => void handleMoveSelected(team.id)}
+                      >
+                        <span
+                          className="team-dot me-2"
+                          style={{
+                            background: team.id
+                              ? teamColor(team.id)
+                              : "#94a3b8",
+                          }}
+                          aria-hidden="true"
+                        />
+                        {team.name}
+                      </Button>
+                    ),
+                  )}
+                </div>
+                {isSaving && (
+                  <p role="status" className="small text-muted mt-2">
+                    Sparar ändringar…
+                  </p>
+                )}
+              </div>
             )}
 
             <Row className="g-3">
-              {(unassignedParticipants.length > 0 || draggedPlayer) && (
+              {unassignedParticipants.length > 0 && (
                 <Col md={4}>
                   <TeamCard
                     title="Ej placerade"
                     players={unassignedParticipants}
                     canManage={canManage}
-                    onSelectPlayer={(player, target) =>
-                      setMovingPlayer({ player, target })
-                    }
-                    onDragPlayer={setDraggedPlayer}
-                    onDropPlayer={handleDrop}
-                    draggedPlayer={draggedPlayer}
+                    selectionMode={selectionMode}
+                    selectedPlayerIds={selectedPlayerIds}
+                    onTogglePlayer={toggleSelectedPlayer}
                     onUpdateTeamName={updateTeamName}
                     isSaving={isSaving}
                     isUnassignedCard
@@ -224,14 +320,10 @@ export function GameSessionSetupPanel({
                   <TeamCard
                     title={team.name}
                     players={team.players}
-                    currentTeamId={team.id}
                     canManage={canManage}
-                    onSelectPlayer={(player, target) =>
-                      setMovingPlayer({ player, target })
-                    }
-                    onDragPlayer={setDraggedPlayer}
-                    onDropPlayer={handleDrop}
-                    draggedPlayer={draggedPlayer}
+                    selectionMode={selectionMode}
+                    selectedPlayerIds={selectedPlayerIds}
+                    onTogglePlayer={toggleSelectedPlayer}
                     onUpdateTeamName={updateTeamName}
                     teamId={team.id}
                     isSaving={isSaving}

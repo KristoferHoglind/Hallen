@@ -1,5 +1,5 @@
 import { teamColor } from "../../../shared/utils/teamColor";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Badge, Button, Form } from "react-bootstrap";
 import type { GameSessionParticipant } from "../types/gameSessionSetup";
 
@@ -7,44 +7,30 @@ type TeamCardProps = {
   title: string;
   teamId?: string;
   players: GameSessionParticipant[];
-  currentTeamId?: string;
   isUnassignedCard?: boolean;
   isSaving: boolean;
-  onSelectPlayer: (
-    player: GameSessionParticipant,
-    target: HTMLButtonElement,
-  ) => void;
-  onDragPlayer: (player: GameSessionParticipant | null) => void;
-  onDropPlayer: (gameTeamId: string | null) => void;
-  draggedPlayer: GameSessionParticipant | null;
   onUpdateTeamName?: (gameTeamId: string, name: string) => Promise<boolean>;
   canManage: boolean;
+  selectionMode?: boolean;
+  selectedPlayerIds?: string[];
+  onTogglePlayer?: (playerId: string) => void;
 };
 
 export function TeamCard({
   title,
   teamId,
   players,
-  currentTeamId,
   isUnassignedCard = false,
   isSaving,
-  onSelectPlayer,
-  onDragPlayer,
-  onDropPlayer,
-  draggedPlayer,
   onUpdateTeamName,
   canManage,
+  selectionMode = false,
+  selectedPlayerIds = [],
+  onTogglePlayer,
 }: TeamCardProps) {
-  const [isDragOver, setIsDragOver] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const isSavingName = useRef(false);
-  useEffect(() => {
-    const clearDrag = () => setIsDragOver(false);
-    document.addEventListener("dragend", clearDrag);
-    return () => document.removeEventListener("dragend", clearDrag);
-  }, []);
-
   async function handleSaveName() {
     if (!teamId || !onUpdateTeamName || isSavingName.current || isSaving) {
       return;
@@ -79,34 +65,7 @@ export function TeamCard({
       id={`team-roster-${teamId ?? "unassigned"}`}
       tabIndex={-1}
       aria-label={title}
-      className={`team-roster h-100 ${isDragOver && draggedPlayer ? "is-drop-target" : ""}`}
-      onDragOver={(event) => {
-        if (
-          !canManage ||
-          isSaving ||
-          !draggedPlayer ||
-          draggedPlayer.gameTeamId === (currentTeamId ?? null)
-        )
-          return;
-        event.preventDefault();
-        event.dataTransfer.dropEffect = "move";
-        setIsDragOver(true);
-      }}
-      onDragLeave={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null))
-          setIsDragOver(false);
-      }}
-      onDrop={(event) => {
-        event.preventDefault();
-        setIsDragOver(false);
-        if (
-          canManage &&
-          !isSaving &&
-          draggedPlayer &&
-          draggedPlayer.gameTeamId !== (currentTeamId ?? null)
-        )
-          onDropPlayer(currentTeamId ?? null);
-      }}
+      className="team-roster h-100"
       style={{ borderTopColor: teamId ? teamColor(teamId) : "#94a3b8" }}
     >
       <div className="d-flex justify-content-between align-items-center mb-2 gap-2">
@@ -129,6 +88,7 @@ export function TeamCard({
                 setIsEditingName(false);
               }
             }}
+            onFocus={(event) => event.currentTarget.select()}
             autoFocus
           />
         ) : (
@@ -173,37 +133,25 @@ export function TeamCard({
       </div>
 
       {players.length === 0 ? (
-        <p className="text-muted small mb-0">
-          {draggedPlayer ? "Släpp spelaren här" : "Inga spelare här ännu."}
-        </p>
+        <p className="text-muted small mb-0">Inga spelare här ännu.</p>
       ) : (
         <div className="roster-players">
           {players.map((player) =>
-            canManage ? (
+            canManage && selectionMode ? (
               <button
                 key={player.playerId}
                 type="button"
-                className="player-move-row"
+                className={`player-move-row ${selectionMode && selectedPlayerIds.includes(player.playerId) ? "bg-primary-subtle text-primary" : ""}`}
                 disabled={isSaving}
-                draggable={!isSaving}
-                aria-label={`Flytta ${player.playerName}`}
-                aria-haspopup="dialog"
-                onClick={(event) => onSelectPlayer(player, event.currentTarget)}
-                onDragStart={(event) => {
-                  event.dataTransfer.setData(
-                    "application/x-hallen-player",
-                    player.playerId,
-                  );
-                  event.dataTransfer.effectAllowed = "move";
-                  onDragPlayer(player);
-                }}
-                onDragEnd={() => {
-                  setIsDragOver(false);
-                  onDragPlayer(null);
-                }}
+                aria-label={`Markera ${player.playerName}`}
+                aria-pressed={selectedPlayerIds.includes(player.playerId)}
+                onClick={() => onTogglePlayer?.(player.playerId)}
               >
                 <span>{player.playerName}</span>
-                <i className="bi bi-arrow-left-right" aria-hidden="true" />
+                <i
+                  className={`bi ${selectedPlayerIds.includes(player.playerId) ? "bi-check-square-fill" : "bi-square"}`}
+                  aria-hidden="true"
+                />
               </button>
             ) : (
               <div className="player-row" key={player.playerId}>

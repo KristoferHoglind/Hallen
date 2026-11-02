@@ -218,7 +218,21 @@ export function useGameSessions(sportsGroupId: string) {
     }
   }
 
+  function updateParticipantCount(
+    gameSessionId: string,
+    participantCount: number,
+  ) {
+    setGameSessions((current) =>
+      current.map((session) =>
+        session.id === gameSessionId
+          ? { ...session, participantCount }
+          : session,
+      ),
+    );
+  }
+
   return {
+    updateParticipantCount,
     gameSessions,
     activePlayers,
     isLoading: isLoadingGameSessions || isLoadingPlayers,

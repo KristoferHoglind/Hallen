@@ -74,6 +74,7 @@ export function CurrentMatchCard({
             maxLength={200}
             disabled={isSaving}
             onChange={(event) => onChangeMatchName(event.target.value)}
+            onFocus={(event) => event.currentTarget.select()}
             placeholder="Match"
           />
           <label

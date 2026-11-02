@@ -180,9 +180,13 @@ export function GameMatchesPanel({
               onEditMatch={(match) => {
                 startEdit(match);
                 onEditRequest?.();
-                requestAnimationFrame(() =>
-                  document.getElementById("currentMatchName")?.focus(),
-                );
+                requestAnimationFrame(() => {
+                  const input = document.getElementById("currentMatchName");
+                  if (input instanceof HTMLInputElement) {
+                    input.focus();
+                    input.select();
+                  }
+                });
               }}
               onDeleteMatch={setMatchToDelete}
             />

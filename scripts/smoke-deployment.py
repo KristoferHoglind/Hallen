@@ -181,6 +181,46 @@ def main():
         def match_body(teams, scores, winner=None):
             return {"teamResults": [{"gameTeamId": team, "score": score} for team, score in zip(teams, scores)], "winnerGameTeamId": winner}
         first_match = api("POST", session_path + "/matches", match_body(team_ids, [3, 1]), cookie, 201)[0]
+        # Batch moves are all-or-nothing and never rewrite saved match lineups.
+        batch_path = session_path + "/players/team"
+        batch_ids = [p["id"] for p in players]
+        api("PUT", batch_path, {"playerIds": batch_ids, "gameTeamId": team_ids[0]}, expected=401)
+        api("PUT", batch_path, {"playerIds": batch_ids, "gameTeamId": team_ids[0]}, outsider_cookie, 400)
+        before_batch = api("GET", session_path + "/setup", cookie=cookie)[0]
+        api("PUT", batch_path, {"playerIds": [batch_ids[0], str(uuid.uuid4())], "gameTeamId": team_ids[1]}, cookie, 400)
+        api("PUT", batch_path, {"playerIds": batch_ids, "gameTeamId": str(uuid.uuid4())}, cookie, 400)
+        api("PUT", batch_path, {"playerIds": [], "gameTeamId": None}, cookie, 400)
+        assert api("GET", session_path + "/setup", cookie=cookie)[0] == before_batch
+        moved = api("PUT", batch_path, {"playerIds": batch_ids + [batch_ids[0]], "gameTeamId": team_ids[0]}, cookie)[0]
+        assert all(p["gameTeamId"] == team_ids[0] for p in moved["participants"])
+        assert sum(len(t["players"]) for t in moved["teams"]) == len(batch_ids)
+        assert api("PUT", batch_path, {"playerIds": batch_ids, "gameTeamId": team_ids[0]}, cookie)[0] == moved
+        unassigned = api("PUT", batch_path, {"playerIds": batch_ids, "gameTeamId": None}, cookie)[0]
+        assert all(not p["isAssignedToTeam"] for p in unassigned["participants"])
+        assert api("GET", "/api/game-matches/" + first_match["id"], cookie=cookie)[0] == first_match
+        for player, team in zip(players, team_ids):
+            api("PUT", session_path + "/players/" + player["id"] + "/team", {"gameTeamId": team}, cookie)
+        print("OK: atomic batch moves, duplicate/same-team handling, unassignment, validation, permissions and saved lineups")
+        # Change attendance after a match without rewriting its player snapshots.
+        participants_path = session_path + "/players"
+        api("PUT", participants_path, {"playerIds": []}, expected=401)
+        api("PUT", participants_path, {"playerIds": []}, outsider_cookie, 400)
+        api("PUT", participants_path, {"playerIds": [str(uuid.uuid4())]}, cookie, 400)
+        changed = api("PUT", participants_path, {"playerIds": [players[1]["id"]]}, cookie)[0]
+        assert [p["playerId"] for p in changed["participants"]] == [players[1]["id"]]
+        assert not any(p["playerId"] == players[0]["id"] for t in changed["teams"] for p in t["players"])
+        assert api("GET", "/api/game-matches/" + first_match["id"], cookie=cookie)[0] == first_match
+        restored = api("PUT", participants_path, {"playerIds": [p["id"] for p in players]}, cookie)[0]
+        assert not next(p for p in restored["participants"] if p["playerId"] == players[0]["id"])["isAssignedToTeam"]
+        assert next(p for p in restored["participants"] if p["playerId"] == players[1]["id"])["isAssignedToTeam"]
+        emptied = api("PUT", participants_path, {"playerIds": []}, cookie)[0]
+        assert not emptied["participants"] and all(not t["players"] for t in emptied["teams"])
+        assert {t["id"]: t["name"] for t in emptied["teams"]} == {t["id"]: t["name"] for t in restored["teams"]}
+        api("PUT", participants_path, {"playerIds": [p["id"] for p in players]}, cookie)
+        for player, team in zip(players, team_ids):
+            api("PUT", session_path + "/players/" + player["id"] + "/team", {"gameTeamId": team}, cookie)
+        assert api("GET", "/api/game-matches/" + first_match["id"], cookie=cookie)[0] == first_match
+        print("OK: session attendance can change, including zero players; assignments and match history preserved")
         second_session = api("POST", group_path + "/game-sessions", {"name": "Second session", "startsAt": datetime.now(timezone.utc).isoformat(), "numberOfTeams": 2, "playerIds": [p["id"] for p in players]}, cookie, 201)[0]
         second_path = "/api/game-sessions/" + second_session["id"]
         second_setup = api("GET", second_path + "/setup", cookie=cookie)[0]

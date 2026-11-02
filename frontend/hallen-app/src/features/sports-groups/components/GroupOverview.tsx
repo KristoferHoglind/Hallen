@@ -170,11 +170,13 @@ export function GroupDescription({
               <Form.Label>Gruppbeskrivning</Form.Label>
               <Form.Control
                 as="textarea"
+                autoFocus
+                onFocus={(event) => event.currentTarget.select()}
                 rows={5}
                 value={draft}
                 maxLength={2000}
                 disabled={busy}
-                placeholder="Innebandy varje måndag kl. 16.00."
+                placeholder="Ex. Innebandy varje måndag kl. 16.00."
                 onChange={(event) => setDraft(event.target.value)}
               />
               <Form.Text>

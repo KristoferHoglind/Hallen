@@ -32,6 +32,7 @@ export function EditSportsGroupModal({
               type="text"
               value={name}
               onChange={(event) => onChangeName(event.target.value)}
+              onFocus={(event) => event.currentTarget.select()}
               autoFocus
             />
           </Form.Group>

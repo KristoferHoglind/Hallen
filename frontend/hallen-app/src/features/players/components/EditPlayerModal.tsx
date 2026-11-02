@@ -50,6 +50,7 @@ function EditPlayerForm({
             type="text"
             value={editPlayerName}
             onChange={(event) => setEditPlayerName(event.target.value)}
+            onFocus={(event) => event.currentTarget.select()}
             autoFocus
           />
         </Form.Group>

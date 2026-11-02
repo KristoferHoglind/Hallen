@@ -6,11 +6,15 @@ public interface IGameSessionSetupService
 {
     Task<GameSessionSetupDto?> GetSetupAsync(Guid gameSessionId, Guid appUserId);
 
+    Task<GameSessionSetupDto?> UpdatePlayersAsync(Guid gameSessionId, UpdateSessionPlayersRequest request, Guid appUserId);
+
     Task<GameSessionSetupDto?> ResetPlayersAsync(Guid gameSessionId, Guid appUserId);
 
     Task<GameSessionSetupDto?> RandomizeTeamsAsync(Guid gameSessionId, Guid appUserId);
 
     Task<GameSessionSetupDto?> CreateEmptyTeamsAsync(Guid gameSessionId, CreateEmptyTeamsRequest request, Guid appUserId);
+
+    Task<GameSessionSetupDto?> MovePlayersToTeamAsync(Guid gameSessionId, MovePlayersToTeamRequest request, Guid appUserId);
 
     Task<GameSessionSetupDto?> MovePlayerToTeamAsync(Guid gameSessionId, Guid playerId, MovePlayerToTeamRequest request, Guid appUserId);
 }

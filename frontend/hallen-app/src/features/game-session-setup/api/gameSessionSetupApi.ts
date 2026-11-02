@@ -1,8 +1,5 @@
 import { API_BASE_URL } from "../../../config/api";
-import type {
-  GameSessionSetup,
-  MovePlayerToTeamRequest,
-} from "../types/gameSessionSetup";
+import type { GameSessionSetup } from "../types/gameSessionSetup";
 
 export async function getGameSessionSetup(
   gameSessionId: string,
@@ -39,30 +36,6 @@ export async function randomizeTeams(
   return response.json();
 }
 
-export async function movePlayerToTeam(
-  gameSessionId: string,
-  playerId: string,
-  request: MovePlayerToTeamRequest,
-): Promise<GameSessionSetup> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/game-sessions/${gameSessionId}/players/${playerId}/team`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(request),
-      credentials: "include",
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error("Kunde inte flytta spelare.");
-  }
-
-  return response.json();
-}
-
 export async function resetPlayers(
   gameSessionId: string,
 ): Promise<GameSessionSetup> {
@@ -74,5 +47,40 @@ export async function resetPlayers(
     },
   );
   if (!response.ok) throw new Error("Kunde inte återställa spelarna.");
+  return response.json();
+}
+
+export async function updateSessionPlayers(
+  gameSessionId: string,
+  playerIds: string[],
+): Promise<GameSessionSetup> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/game-sessions/${gameSessionId}/players`,
+    {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerIds }),
+    },
+  );
+  if (!response.ok) throw new Error("Kunde inte uppdatera deltagarna.");
+  return response.json();
+}
+
+export async function movePlayersToTeam(
+  gameSessionId: string,
+  playerIds: string[],
+  gameTeamId: string | null,
+): Promise<GameSessionSetup> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/game-sessions/${gameSessionId}/players/team`,
+    {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerIds, gameTeamId }),
+    },
+  );
+  if (!response.ok) throw new Error("Kunde inte flytta spelarna.");
   return response.json();
 }

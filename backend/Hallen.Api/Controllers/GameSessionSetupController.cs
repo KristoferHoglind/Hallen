@@ -27,6 +27,14 @@ public class GameSessionSetupController(IGameSessionSetupService gameSessionSetu
         return Ok(setup);
     }
 
+    [HttpPut("api/game-sessions/{gameSessionId:guid}/players")]
+    public async Task<ActionResult<GameSessionSetupDto>> UpdatePlayers(Guid gameSessionId, UpdateSessionPlayersRequest request)
+    {
+        var setup = await gameSessionSetupService.UpdatePlayersAsync(gameSessionId, request, User.GetUserId());
+        if (setup is null) return BadRequest();
+        return Ok(setup);
+    }
+
     [HttpPost("api/game-sessions/{gameSessionId:guid}/players/reset")]
     public async Task<ActionResult<GameSessionSetupDto>> ResetPlayers(Guid gameSessionId)
     {
@@ -65,6 +73,14 @@ public class GameSessionSetupController(IGameSessionSetupService gameSessionSetu
             return BadRequest();
         }
 
+        return Ok(setup);
+    }
+
+    [HttpPut("api/game-sessions/{gameSessionId:guid}/players/team")]
+    public async Task<ActionResult<GameSessionSetupDto>> MovePlayersToTeam(Guid gameSessionId, MovePlayersToTeamRequest request)
+    {
+        var setup = await gameSessionSetupService.MovePlayersToTeamAsync(gameSessionId, request, User.GetUserId());
+        if (setup is null) return BadRequest();
         return Ok(setup);
     }
 

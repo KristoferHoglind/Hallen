@@ -19,6 +19,7 @@ export function GameSessionsPanel({
   canManage,
 }: GameSessionsPanelProps) {
   const {
+    updateParticipantCount,
     gameSessions,
     activePlayers,
     isLoading,
@@ -191,6 +192,9 @@ export function GameSessionsPanel({
           <GameSessionSetupPanel
             onBack={() => setSelectedGameSessionId(null)}
             key={selectedGameSessionId}
+            onParticipantsChanged={(count) =>
+              updateParticipantCount(selectedGameSessionId, count)
+            }
             gameSessionId={selectedGameSessionId}
             canManage={canManage}
           />
