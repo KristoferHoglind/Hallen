@@ -31,7 +31,18 @@ def main():
     password = secrets.token_hex(24)
     port = None
 
-    def request(method, path, data=None, cookie=None, proxy=True):
+    csrf_tokens = {}
+    def request(method, path, data=None, cookie=None, proxy=True, csrf=True):
+        # Tokens are bound to the identity and include their own CSRF cookie.
+        csrf_entry = None
+        if csrf and method not in ("GET", "HEAD", "OPTIONS"):
+            csrf_key = (port, cookie, proxy)
+            csrf_entry = csrf_tokens.get(csrf_key)
+            if csrf_entry is None:
+                status, token_headers, token_body = request("GET", "/api/security/csrf", cookie=cookie, proxy=proxy)
+                assert status == 200, token_body
+                csrf_entry = (json.loads(token_body)["token"], token_headers["csrf-cookie"].split(";",1)[0])
+                csrf_tokens[csrf_key] = csrf_entry
         # This simulates TLS termination only on the loopback-only test binding.
         conn = http.client.HTTPConnection("127.0.0.1", port, timeout=30)
         headers = {"X-Forwarded-Proto": "https"} if proxy else {}
@@ -39,11 +50,19 @@ def main():
             headers["Content-Type"] = "application/json"
         if cookie:
             headers["Cookie"] = cookie
+        if csrf_entry:
+            headers["X-Hallen-CSRF"] = csrf_entry[0]
+            headers["Cookie"] = (headers.get("Cookie", "") + "; " + csrf_entry[1]).strip("; ")
         try:
             conn.request(method, path, json.dumps(data) if data is not None else None, headers)
             response = conn.getresponse()
             body = response.read().decode()
-            return response.status, {key.lower(): value for key, value in response.getheaders()}, body
+            result_headers = {key.lower(): value for key, value in response.getheaders()}
+            auth_cookies = [value for key,value in response.getheaders() if key.lower() == "set-cookie" and (value.startswith("Hallen.Auth=") or value.startswith("Hallen.Dev.Auth=")) and "=;" not in value]
+            if auth_cookies: result_headers["set-cookie"] = auth_cookies[-1]
+            csrf_cookies = [value for key,value in response.getheaders() if key.lower() == "set-cookie" and (value.startswith("__Host-Hallen.Csrf=") or value.startswith("Hallen.Dev.Csrf="))]
+            if csrf_cookies: result_headers["csrf-cookie"] = csrf_cookies[0]
+            return response.status, result_headers, body
         finally:
             conn.close()
 
@@ -70,7 +89,7 @@ def main():
                "-e", "POSTGRES_DB=hallen_test", "-e", "POSTGRES_USER=hallen",
                "-e", "POSTGRES_PASSWORD=" + password, "postgres:17")
         for _ in range(60):
-            probe = subprocess.run(["docker", "exec", db, "pg_isready", "-U", "hallen", "-d", "hallen_test"],
+            probe = subprocess.run(["docker", "exec", db, "pg_isready", "-h", "127.0.0.1", "-U", "hallen", "-d", "hallen_test"],
                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             if probe.returncode == 0:
                 break
@@ -78,10 +97,12 @@ def main():
         else:
             raise AssertionError("Test PostgreSQL did not start")
 
-        def start_app(bootstrap=True, environment="Production"):
+        docker("exec",db,"psql","-U","hallen","-d","hallen_test","-c","CREATE ROLE anon; CREATE ROLE authenticated;")
+        def start_app(bootstrap=True, environment="Production", runtime=False):
             docker("run", "-d", "--name", app, "--network", network, "--memory", "512m",
                    "-p", "127.0.0.1::10000",
-                   "-e", "ConnectionStrings__DefaultConnection=Host=" + db + ";Database=hallen_test;Username=hallen;Password=" + password + ";Maximum Pool Size=10",
+                   "-e", "ConnectionStrings__DefaultConnection=Host=" + db + ";Database=hallen_test;Username=" + ("hallen_runtime" if runtime else "hallen") + ";Password=" + password + ";Maximum Pool Size=10",
+                   "-e", "ConnectionStrings__MigrationConnection=Host=" + db + ";Database=hallen_test;Username=hallen;Password=" + password,
                    "-e", "ASPNETCORE_ENVIRONMENT=" + environment,
                    "-e", "RateLimiting__AuthPermitLimit=200",
                    "-e", "Database__MigrateOnStartup=true",
@@ -759,6 +780,63 @@ def main():
         print("OK: template CRUD/validation/group isolation, named teams, historical radar partners, form, zero-match players and reader permissions")
         print("OK: all 12 closed-session write routes blocked, stats preserved, reopening and concurrent closing/editing serialized")
 
+        # CSRF is required independently of authentication and CORS.
+        assert request("POST","/api/auth/login",{"email":"owner@example.test","password":"Smoke-test-12345"},csrf=False)[0] == 400
+        assert request("PUT",feature_session_path+"/status",{"isClosed":False},cookie,csrf=False)[0] == 400
+        headers = request("GET","/")[1]
+        assert "script-src 'self'" in headers.get("content-security-policy","")
+        assert "frame-ancestors 'none'" in headers["content-security-policy"]
+        assert headers["x-frame-options"] == "DENY" and "camera=()" in headers["permissions-policy"]
+        # Configure a real authenticator for a non-admin account; no forced migration enrolment.
+        import base64, hmac, struct
+        setup_2fa = api("POST","/api/security/two-factor/setup",{"password":"Smoke-test-12345"},reader_cookie)[0]
+        key = setup_2fa["sharedKey"]
+        def totp():
+            secret = base64.b32decode(key.upper()+"="*((8-len(key)%8)%8))
+            digest = hmac.new(secret,struct.pack(">Q",int(time.time())//30),hashlib.sha1).digest()
+            offset=digest[-1]&15
+            return str((struct.unpack(">I",digest[offset:offset+4])[0]&0x7fffffff)%1000000).zfill(6)
+        # Setup refreshes this account's cookie after changing its security stamp.
+        _, login_headers = api("POST","/api/auth/login",{"email":"feature-reader@example.test","password":"Smoke-test-12345"})
+        reader_cookie=login_headers["set-cookie"].split(";",1)[0]
+        api("POST","/api/security/two-factor/enable",{"password":"Smoke-test-12345","code":"invalid"},reader_cookie,400)
+        enabled, enabled_headers=api("POST","/api/security/two-factor/enable",{"password":"Smoke-test-12345","code":totp()},reader_cookie)
+        assert len(enabled["recoveryCodes"]) == 10
+        assert api("GET","/api/auth/me",cookie=reader_cookie,expected=401)
+        def challenge():
+            body, headers=api("POST","/api/auth/login",{"email":"feature-reader@example.test","password":"Smoke-test-12345"},expected=202)
+            assert body["requiresTwoFactor"] is True
+            return headers["set-cookie"].split(";",1)[0]
+        pending_cookie=challenge()
+        api("GET","/api/auth/me",cookie=pending_cookie,expected=401)
+        api("POST","/api/auth/two-factor",{"code":"invalid"},pending_cookie,401)
+        signed_in, otp_headers=api("POST","/api/auth/two-factor",{"code":totp()},pending_cookie)
+        otp_cookie=otp_headers["set-cookie"].split(";",1)[0]
+        assert api("GET","/api/auth/me",cookie=otp_cookie)[0]["id"] == signed_in["id"]
+        stale_pending=challenge()
+        reset_link=api("POST","/api/password-recovery/users/"+signed_in["id"],cookie=cookie)[0]
+        api("POST","/api/password-recovery/reset",{"userId":signed_in["id"],"token":reset_link["token"],"password":"Smoke-test-12345"},expected=204)
+        api("POST","/api/auth/two-factor",{"code":totp()},stale_pending,401)
+        pending_cookie=challenge()
+        _, recovery_headers=api("POST","/api/auth/two-factor",{"code":enabled["recoveryCodes"][0],"recoveryCode":True},pending_cookie)
+        recovered_cookie=recovery_headers["set-cookie"].split(";",1)[0]
+        assert api("GET","/api/security/two-factor",cookie=recovered_cookie)[0]["recoveryCodesLeft"] == 9
+        api("POST","/api/auth/two-factor",{"code":enabled["recoveryCodes"][0],"recoveryCode":True},challenge(),401)
+        assert api("GET","/api/security/two-factor",cookie=recovered_cookie)[0]["canResetFromRecovery"] is True
+        _, disabled_headers=api("POST","/api/security/two-factor/disable",{"password":"Smoke-test-12345"},recovered_cookie,204)
+        disabled_cookie=disabled_headers["set-cookie"].split(";",1)[0]
+        api("GET","/api/accounts/audit",cookie=disabled_cookie,expected=403)
+        api("GET","/api/auth/me",cookie=otp_cookie,expected=401)
+        logs=api("GET","/api/accounts/audit?pageSize=50",cookie=cookie)[0]
+        assert logs["total"] > 0 and any("TwoFactorEnabled" in e["changedFields"] for e in logs["items"])
+        encoded=json.dumps(logs)
+        assert key not in encoded and not any(code in encoded for code in enabled["recoveryCodes"])
+        api("GET","/api/accounts/audit",cookie=recovered_cookie,expected=401)
+        for role,table in [("anon","AspNetUsers"),("authenticated","DataProtectionKeys")]:
+            probe=subprocess.run(["docker","exec",db,"psql","-v","ON_ERROR_STOP=1","-U","hallen","-d","hallen_test","-c",f'SET ROLE {role}; SELECT * FROM "{table}";'],capture_output=True,text=True)
+            assert probe.returncode != 0 and "permission denied" in probe.stderr
+        print("OK: CSRF rejects missing tokens, CSP/headers, real TOTP, single-use recovery, safe lost-phone reset, stamp revocation and redacted audit log")
+        print("OK: RLS and revoked grants deny Supabase anon/authenticated direct reads of users and encryption keys")
         actual, _ = api("GET", "/api/auth/me", cookie=cookie)
         assert actual["id"] == owner["id"], "Login did not survive a fresh container"
         assert api("GET", group_path, cookie=cookie)[0]["id"] == group["id"]
@@ -771,6 +849,17 @@ def main():
         assert still_revoked == "f", still_revoked
         print("OK: standalone migration exits successfully and does not regrant revoked operator permissions")
         docker("rm", "-f", "-v", app)
+        role_sql=__import__("pathlib").Path("deploy/security/runtime-role.sql").read_text()
+        subprocess.run(["docker","exec","-i",db,"psql","-v","ON_ERROR_STOP=1","-U","hallen","-d","hallen_test"],input=role_sql,text=True,check=True,stdout=subprocess.DEVNULL)
+        docker("exec",db,"psql","-U","hallen","-d","hallen_test","-c","ALTER ROLE hallen_runtime PASSWORD '"+password+"';")
+        port = start_app(runtime=True)
+        wait_ready()
+        assert api("GET","/api/auth/me",cookie=cookie)[0]["id"] == owner["id"]
+        api("POST","/api/sports-groups",{"name":"Limited role works"},cookie,201)
+        probe=subprocess.run(["docker","exec",db,"psql","-v","ON_ERROR_STOP=1","-U","hallen","-d","hallen_test","-c","SET ROLE hallen_runtime; DELETE FROM audit_events;"],capture_output=True,text=True)
+        assert probe.returncode != 0 and "permission denied" in probe.stderr
+        print("OK: limited runtime role can authenticate/write through RLS; migration uses separate owner connection; audit deletion denied")
+        docker("rm","-f","-v",app)
         port = start_app(environment="Development")
         wait_ready()
         _, development_headers = api("POST", "/api/auth/login", {"email": "owner@example.test", "password": "Smoke-test-12345"})

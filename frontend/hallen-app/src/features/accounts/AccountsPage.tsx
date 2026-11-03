@@ -1,3 +1,4 @@
+import { AuditLogPanel } from "../security/AuditLogPanel";
 import { InvitationsPanel } from "../invitations/components/InvitationsPanel";
 import { useEffect, useState } from "react";
 import {
@@ -170,6 +171,7 @@ export function AccountsPage({
   currentUserId: string;
   onPermissionsChanged: () => Promise<void>;
 }) {
+  const [showAudit, setShowAudit] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState<Account | null>(null);
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
@@ -434,6 +436,13 @@ export function AccountsPage({
           )}
         </>
       )}
+      <details
+        className="mt-4"
+        onToggle={(event) => setShowAudit(event.currentTarget.open)}
+      >
+        <summary>Administrationslogg</summary>
+        {showAudit && <AuditLogPanel />}
+      </details>
     </div>
   );
 }

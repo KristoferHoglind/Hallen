@@ -17,7 +17,7 @@ namespace Hallen.Database.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.28")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -198,6 +198,44 @@ namespace Hallen.Database.Migrations
                         .IsUnique();
 
                     b.ToTable("SportsGroupMembers");
+                });
+
+            modelBuilder.Entity("Hallen.Database.Models.AuditEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid?>("ActorUserId")
+                        .HasColumnType("uuid");
+
+                    b.PrimitiveCollection<string[]>("ChangedFields")
+                        .IsRequired()
+                        .HasColumnType("text[]");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EntityId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.ToTable("audit_events", (string)null);
                 });
 
             modelBuilder.Entity("Hallen.Database.Models.GameMatch", b =>
@@ -472,7 +510,7 @@ namespace Hallen.Database.Migrations
                     b.Property<Guid>("SportsGroupId")
                         .HasColumnType("uuid");
 
-                    b.Property<string[]>("TeamNames")
+                    b.PrimitiveCollection<string[]>("TeamNames")
                         .IsRequired()
                         .HasColumnType("text[]");
 

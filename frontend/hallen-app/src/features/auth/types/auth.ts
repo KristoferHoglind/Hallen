@@ -17,6 +17,8 @@ export type RegisterRequest = {
 };
 
 export type LoginRequest = {
+  twoFactorCode?: string;
+  recoveryCode?: boolean;
   email: string;
   password: string;
 };

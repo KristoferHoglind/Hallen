@@ -1,8 +1,15 @@
 import { useEffect, useState } from "react";
-import { getCurrentUser, login, logout, register } from "../api/authApi";
+import {
+  getCurrentUser,
+  login,
+  logout,
+  register,
+  TwoFactorRequiredError,
+} from "../api/authApi";
 import type { CurrentUser, LoginRequest, RegisterRequest } from "../types/auth";
 
 export function useAuth() {
+  const [requiresTwoFactor, setRequiresTwoFactor] = useState(false);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
@@ -70,9 +77,11 @@ export function useAuth() {
 
       const user = await login(request);
       setCurrentUser(user);
+      setRequiresTwoFactor(false);
 
       return true;
     } catch (error) {
+      if (error instanceof TwoFactorRequiredError) setRequiresTwoFactor(true);
       setAuthErrorMessage(
         error instanceof Error ? error.message : "Kunde inte logga in.",
       );
@@ -98,6 +107,7 @@ export function useAuth() {
   }
 
   return {
+    requiresTwoFactor,
     currentUser,
     isAuthenticated: currentUser !== null,
     isLoadingUser,

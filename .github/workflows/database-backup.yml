@@ -1,0 +1,44 @@
+name: Encrypted database backup
+on:
+  schedule:
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: hallen-database-backup
+  cancel-in-progress: false
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    env:
+      PGHOST: ${{ secrets.BACKUP_PGHOST }}
+      PGPORT: "5432"
+      PGDATABASE: postgres
+      PGUSER: ${{ secrets.BACKUP_PGUSER }}
+      PGPASSWORD: ${{ secrets.BACKUP_PGPASSWORD }}
+      PGSSLMODE: verify-full
+      PGSSLROOTCERT: ${{ github.workspace }}/deploy/certificates/supabase-root-2021.crt
+      BACKUP_RECIPIENT: ${{ secrets.BACKUP_AGE_RECIPIENT }}
+      BACKUP_DIRECTORY: backups
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Validate configuration
+        run: test -n "$PGHOST" && test -n "$PGUSER" && test -n "$PGPASSWORD" && test -n "$BACKUP_RECIPIENT"
+      - name: Build PostgreSQL 17 backup tools
+        run: docker build -f deploy/security/Backup.Dockerfile -t hallen-backup .
+      - name: Dump and encrypt without a plaintext backup file
+        run: |
+          mkdir -p backups
+          docker run --rm --user "$(id -u):$(id -g)" \
+            -v "$PWD:/workspace:ro" -v "$PWD/backups:/backups" -w /workspace \
+            -e PGHOST -e PGPORT -e PGDATABASE -e PGUSER -e PGPASSWORD -e PGSSLMODE \
+            -e PGSSLROOTCERT=/workspace/deploy/certificates/supabase-root-2021.crt \
+            -e BACKUP_RECIPIENT -e BACKUP_DIRECTORY=/backups \
+            hallen-backup scripts/backup-database.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: hallen-encrypted-database-${{ github.run_id }}
+          path: backups/*.dump.age
+          retention-days: 30
+          if-no-files-found: error

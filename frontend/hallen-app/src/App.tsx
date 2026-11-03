@@ -1,3 +1,4 @@
+import { SecurityPage } from "./features/security/SecurityPage";
 import { ReleaseNotes } from "./features/release-notes/ReleaseNotes";
 import { HomePage } from "./features/home/HomePage";
 import { AccountsPage } from "./features/accounts/AccountsPage";
@@ -20,6 +21,7 @@ import { InvitationPage } from "./features/invitations/components/InvitationPage
 function App() {
   const location = useLocation();
   const {
+    requiresTwoFactor,
     currentUser,
     isAuthenticated,
     isLoadingUser,
@@ -54,6 +56,7 @@ function App() {
     return (
       <Container className="hallen-app py-4">
         <InvitationPage
+          requiresTwoFactor={requiresTwoFactor}
           currentUser={currentUser}
           isSubmitting={isSubmittingAuth}
           authError={authErrorMessage}
@@ -68,6 +71,7 @@ function App() {
     return (
       <Container className="hallen-app py-4">
         <AuthPage
+          requiresTwoFactor={requiresTwoFactor}
           isSubmitting={isSubmittingAuth}
           errorMessage={authErrorMessage}
           onLogin={handleLogin}
@@ -112,6 +116,9 @@ function App() {
                 Konton och lösenord
               </Nav.Link>
             )}
+            <Nav.Link as={NavLink} to="/sakerhet" eventKey="/sakerhet">
+              Kontosäkerhet
+            </Nav.Link>
             {currentUser && (
               <ReleaseNotes key={currentUser.id} userId={currentUser.id} />
             )}
@@ -152,6 +159,7 @@ function App() {
             }
           />
         )}
+        <Route path="/sakerhet" element={<SecurityPage />} />
         <Route path="/spela" element={<PlayPage />} />
         <Route
           path="/grupper"

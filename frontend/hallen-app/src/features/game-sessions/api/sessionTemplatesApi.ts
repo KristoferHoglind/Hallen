@@ -1,3 +1,4 @@
+import { apiFetch } from "../../../shared/api/apiFetch";
 import { API_BASE_URL } from "../../../config/api";
 export type SessionTemplate = {
   id: string;
@@ -13,7 +14,7 @@ export async function templateRequest<T>(
   id = "",
   body?: unknown,
 ): Promise<T> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/api/sports-groups/${groupId}/session-templates${id ? `/${id}` : ""}`,
     {
       method,

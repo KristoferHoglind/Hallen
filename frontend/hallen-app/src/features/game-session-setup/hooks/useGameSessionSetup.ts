@@ -1,3 +1,4 @@
+import { apiFetch } from "../../../shared/api/apiFetch";
 import { API_BASE_URL } from "../../../config/api";
 import { useEffect, useState } from "react";
 import {
@@ -51,7 +52,7 @@ export function useGameSessionSetup(gameSessionId: string) {
     try {
       setIsSaving(true);
       setErrorMessage(null);
-      const response = await fetch(
+      const response = await apiFetch(
         `${API_BASE_URL}/api/game-sessions/${gameSessionId}/status`,
         {
           method: "PUT",

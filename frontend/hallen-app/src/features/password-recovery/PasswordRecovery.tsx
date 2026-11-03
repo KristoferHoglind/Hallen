@@ -1,3 +1,4 @@
+import { apiFetch } from "../../shared/api/apiFetch";
 import { useEffect, useRef, useState } from "react";
 import { Alert, Button, Form } from "react-bootstrap";
 import { Link, useLocation } from "react-router-dom";
@@ -10,7 +11,7 @@ type Account = {
   active: boolean;
 };
 async function call<T>(path: string, body?: unknown): Promise<T> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/api/password-recovery/${path}`,
     {
       method: body === undefined ? "GET" : "POST",

@@ -1,4 +1,5 @@
-﻿using Hallen.Database.Data;
+﻿using System.Security.Claims;
+using Hallen.Database.Data;
 using Hallen.Database.Entities;
 using Microsoft.AspNetCore.Identity;
 
@@ -29,7 +30,19 @@ public static class AuthenticationExtensions
             .AddDefaultTokenProviders();
 
         services.Configure<DataProtectionTokenProviderOptions>(options => options.TokenLifespan = TimeSpan.FromHours(1));
-        services.Configure<SecurityStampValidatorOptions>(options => options.ValidationInterval = TimeSpan.Zero);
+        services.Configure<SecurityStampValidatorOptions>(options => {
+            options.ValidationInterval = TimeSpan.Zero;
+            // Stamp validation rebuilds claims on every request. Preserve only this signed,
+            // short-lived recovery proof; never extend its original timestamp.
+            options.OnRefreshingPrincipal = context => {
+                var recovery = context.CurrentPrincipal?.FindFirst("Hallen.RecoveryLoginAt");
+                if (recovery is not null && long.TryParse(recovery.Value, out var time) &&
+                    DateTimeOffset.UtcNow.ToUnixTimeSeconds() - time is >= 0 and <= 300 &&
+                    context.NewPrincipal?.Identity is ClaimsIdentity identity)
+                    identity.AddClaim(recovery);
+                return Task.CompletedTask;
+            };
+        });
 
         services
             .AddAuthentication(IdentityConstants.ApplicationScheme)

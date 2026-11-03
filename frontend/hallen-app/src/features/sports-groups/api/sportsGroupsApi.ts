@@ -1,3 +1,4 @@
+import { apiFetch } from "../../../shared/api/apiFetch";
 import { API_BASE_URL } from "../../../config/api";
 import type {
   CreateSportsGroupRequest,
@@ -6,7 +7,7 @@ import type {
 } from "../types/sportsGroup";
 
 export async function getSportsGroups(): Promise<SportsGroup[]> {
-  const response = await fetch(`${API_BASE_URL}/api/sports-groups`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/sports-groups`, {
     credentials: "include",
   });
 
@@ -26,7 +27,7 @@ export async function getSportsGroups(): Promise<SportsGroup[]> {
 }
 
 export async function getSportsGroup(id: string): Promise<SportsGroup> {
-  const response = await fetch(`${API_BASE_URL}/api/sports-groups/${id}`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/sports-groups/${id}`, {
     credentials: "include",
   });
 
@@ -40,7 +41,7 @@ export async function getSportsGroup(id: string): Promise<SportsGroup> {
 export async function createSportsGroup(
   request: CreateSportsGroupRequest,
 ): Promise<SportsGroup> {
-  const response = await fetch(`${API_BASE_URL}/api/sports-groups`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/sports-groups`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -60,7 +61,7 @@ export async function updateSportsGroup(
   id: string,
   request: UpdateSportsGroupRequest,
 ): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/sports-groups/${id}`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/sports-groups/${id}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -75,7 +76,7 @@ export async function updateSportsGroup(
 }
 
 export async function deleteSportsGroup(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/sports-groups/${id}`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/sports-groups/${id}`, {
     method: "DELETE",
     credentials: "include",
   });

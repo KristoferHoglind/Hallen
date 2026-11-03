@@ -1,3 +1,4 @@
+import { apiFetch } from "../../../shared/api/apiFetch";
 import { API_BASE_URL } from "../../../config/api";
 import type {
   CreateGameMatchRequest,
@@ -8,7 +9,7 @@ import type {
 export async function getGameMatchesForGameSession(
   gameSessionId: string,
 ): Promise<GameMatch[]> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/api/game-sessions/${gameSessionId}/matches`,
     {
       credentials: "include",
@@ -26,7 +27,7 @@ export async function createGameMatch(
   gameSessionId: string,
   request: CreateGameMatchRequest,
 ): Promise<GameMatch> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/api/game-sessions/${gameSessionId}/matches`,
     {
       method: "POST",
@@ -49,7 +50,7 @@ export async function updateGameMatch(
   gameMatchId: string,
   request: UpdateGameMatchRequest,
 ): Promise<GameMatch> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/api/game-matches/${gameMatchId}`,
     {
       method: "PUT",
@@ -69,7 +70,7 @@ export async function updateGameMatch(
 }
 
 export async function deleteGameMatch(gameMatchId: string): Promise<void> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/api/game-matches/${gameMatchId}`,
     {
       method: "DELETE",

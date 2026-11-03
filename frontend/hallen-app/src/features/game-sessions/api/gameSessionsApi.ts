@@ -1,3 +1,4 @@
+import { apiFetch } from "../../../shared/api/apiFetch";
 import { API_BASE_URL } from "../../../config/api";
 import type {
   GameSession,
@@ -8,7 +9,7 @@ import type {
 export async function getGameSessionsForSportsGroup(
   sportsGroupId: string,
 ): Promise<GameSession[]> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/api/sports-groups/${sportsGroupId}/game-sessions`,
     {
       credentials: "include",
@@ -26,7 +27,7 @@ export async function createGameSessionForSportsGroup(
   sportsGroupId: string,
   request: CreateGameSessionRequest,
 ): Promise<GameSession> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/api/sports-groups/${sportsGroupId}/game-sessions`,
     {
       method: "POST",
@@ -49,7 +50,7 @@ export async function updateGameSession(
   gameSessionId: string,
   request: UpdateGameSessionRequest,
 ): Promise<void> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/api/game-sessions/${gameSessionId}`,
     {
       method: "PUT",
@@ -67,7 +68,7 @@ export async function updateGameSession(
 }
 
 export async function deleteGameSession(gameSessionId: string): Promise<void> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/api/game-sessions/${gameSessionId}`,
     {
       method: "DELETE",

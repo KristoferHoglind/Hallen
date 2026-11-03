@@ -15,7 +15,7 @@ public static class DependencyInjection
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new InvalidOperationException("Configure ConnectionStrings__DefaultConnection before starting Hallen.");
 
-        services.AddDbContext<HallenDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddDbContext<HallenDbContext>((provider, options) => options.UseNpgsql(connectionString).AddInterceptors(provider.GetServices<Microsoft.EntityFrameworkCore.Diagnostics.ISaveChangesInterceptor>()));
 
         return services;
     }

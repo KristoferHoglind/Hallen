@@ -1,0 +1,29 @@
+name: Security checks
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "22"
+      - run: npm ci
+        working-directory: frontend/hallen-app
+      - run: npm audit --audit-level=high
+        working-directory: frontend/hallen-app
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: "10.0.x"
+      - run: dotnet restore backend
+      - run: dotnet package list --project backend --vulnerable --include-transitive --format json > /tmp/nuget-audit.json
+      - name: Fail on vulnerable NuGet dependencies
+        run: python3 scripts/check-nuget-audit.py /tmp/nuget-audit.json

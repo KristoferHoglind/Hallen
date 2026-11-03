@@ -21,3 +21,10 @@
 
 # Public Supabase CA certificate; no private keys or client credentials.
 !deploy/certificates/supabase-root-2021.crt
+
+# Never send database dumps or backup identities to Docker builds.
+backups
+**/*.dump
+**/*.dump.age
+**/*.agekey
+**/__pycache__

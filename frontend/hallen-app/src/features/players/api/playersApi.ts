@@ -1,3 +1,4 @@
+import { apiFetch } from "../../../shared/api/apiFetch";
 import type {
   CreatePlayerRequest,
   Player,
@@ -8,7 +9,7 @@ import { API_BASE_URL } from "../../../config/api";
 export async function getPlayersBySportsGroup(
   sportsGroupId: string,
 ): Promise<Player[]> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/api/sports-groups/${sportsGroupId}/players`,
     {
       credentials: "include",
@@ -23,7 +24,7 @@ export async function getPlayersBySportsGroup(
 }
 
 export async function getPlayer(id: string): Promise<Player> {
-  const response = await fetch(`${API_BASE_URL}/api/players/${id}`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/players/${id}`, {
     credentials: "include",
   });
 
@@ -38,7 +39,7 @@ export async function createPlayerForSportsGroup(
   sportsGroupId: string,
   request: CreatePlayerRequest,
 ): Promise<Player> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/api/sports-groups/${sportsGroupId}/players`,
     {
       method: "POST",
@@ -61,7 +62,7 @@ export async function updatePlayer(
   id: string,
   request: UpdatePlayerRequest,
 ): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/players/${id}`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/players/${id}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -76,7 +77,7 @@ export async function updatePlayer(
 }
 
 export async function deletePlayer(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/players/${id}`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/players/${id}`, {
     method: "DELETE",
     credentials: "include",
   });

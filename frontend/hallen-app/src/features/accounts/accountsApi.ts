@@ -1,3 +1,4 @@
+import { apiFetch } from "../../shared/api/apiFetch";
 import { API_BASE_URL } from "../../config/api";
 
 export type Membership = {
@@ -22,7 +23,7 @@ export async function accountRequest<T>(
   body?: unknown,
   method = body === undefined ? "GET" : "PUT",
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}/api/accounts${path}`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/accounts${path}`, {
     method,
     credentials: "include",
     headers:

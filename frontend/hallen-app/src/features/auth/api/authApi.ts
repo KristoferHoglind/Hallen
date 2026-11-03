@@ -1,3 +1,5 @@
+export class TwoFactorRequiredError extends Error {}
+import { apiFetch } from "../../../shared/api/apiFetch";
 import type { CurrentUser, LoginRequest, RegisterRequest } from "../types/auth";
 
 import { API_BASE_URL } from "../../../config/api";
@@ -23,7 +25,7 @@ async function parseErrorResponse(response: Response) {
 }
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/auth/me`, {
     credentials: "include",
   });
 
@@ -49,7 +51,7 @@ async function confirmSession(response: Response): Promise<CurrentUser> {
 }
 
 export async function register(request: RegisterRequest): Promise<CurrentUser> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/auth/register`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -66,7 +68,7 @@ export async function register(request: RegisterRequest): Promise<CurrentUser> {
 }
 
 export async function login(request: LoginRequest): Promise<CurrentUser> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+  let response = await apiFetch(`${API_BASE_URL}/api/auth/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -75,6 +77,21 @@ export async function login(request: LoginRequest): Promise<CurrentUser> {
     body: JSON.stringify(request),
   });
 
+  if (response.status === 202) {
+    if (!request.twoFactorCode)
+      throw new TwoFactorRequiredError(
+        "Ange engångskoden från din autentiseringsapp.",
+      );
+    response = await apiFetch(`${API_BASE_URL}/api/auth/two-factor`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code: request.twoFactorCode,
+        recoveryCode: request.recoveryCode ?? false,
+      }),
+    });
+  }
   if (!response.ok) {
     throw new Error(await parseErrorResponse(response));
   }
@@ -83,7 +100,7 @@ export async function login(request: LoginRequest): Promise<CurrentUser> {
 }
 
 export async function logout(): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/auth/logout`, {
     method: "POST",
     credentials: "include",
   });
@@ -96,7 +113,7 @@ export async function logout(): Promise<void> {
 export async function getRegistrationStatus(): Promise<{
   bootstrapAllowed: boolean;
 }> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/registration`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/auth/registration`, {
     credentials: "include",
   });
   if (!response.ok)

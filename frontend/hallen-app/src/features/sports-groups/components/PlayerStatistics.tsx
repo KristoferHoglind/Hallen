@@ -1,3 +1,4 @@
+import { apiFetch } from "../../../shared/api/apiFetch";
 import { useEffect, useState } from "react";
 import { Alert, Badge, Form, Spinner, Table } from "react-bootstrap";
 import { API_BASE_URL } from "../../../config/api";
@@ -42,7 +43,7 @@ export function PlayerStatistics({ sportsGroupId }: { sportsGroupId: string }) {
   const [search, setSearch] = useState("");
   useEffect(() => {
     let active = true;
-    fetch(
+    apiFetch(
       `${API_BASE_URL}/api/sports-groups/${sportsGroupId}/player-statistics`,
       { credentials: "include" },
     )

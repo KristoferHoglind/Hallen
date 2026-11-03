@@ -1,3 +1,4 @@
+import { apiFetch } from "../../../shared/api/apiFetch";
 import { API_BASE_URL } from "../../../config/api";
 import type { SportsGroupMemberRole } from "../../sports-group-members/types/sportsGroupMember";
 
@@ -17,7 +18,7 @@ async function call<T>(
   method = "GET",
   body?: unknown,
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await apiFetch(`${API_BASE_URL}${path}`, {
     method,
     credentials: "include",
     headers:

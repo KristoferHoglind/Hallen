@@ -1,0 +1,20 @@
+name: Migrate production database
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: hallen-production-migration
+  cancel-in-progress: false
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      ConnectionStrings__DefaultConnection: ${{ secrets.MIGRATION_CONNECTION_STRING }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - run: test -n "$ConnectionStrings__DefaultConnection"
+      - run: docker build -t hallen-migrate .
+      - name: Apply migrations with owner credentials outside the web service
+        run: docker run --rm -e ConnectionStrings__DefaultConnection hallen-migrate --migrate-only

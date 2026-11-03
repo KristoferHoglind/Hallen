@@ -14,6 +14,8 @@ public class HallenDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Gu
     {
     }
 
+    public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     public DbSet<SportsGroup> SportsGroups => Set<SportsGroup>();
@@ -43,6 +45,11 @@ public class HallenDbContext : IdentityDbContext<AppUser, IdentityRole<Guid>, Gu
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<AuditEvent>(entity => {
+            entity.ToTable("audit_events"); entity.HasKey(x => x.Id);
+            entity.Property(x => x.EntityType).HasMaxLength(64); entity.Property(x => x.EntityId).HasMaxLength(64);
+            entity.Property(x => x.Action).HasMaxLength(16); entity.HasIndex(x => x.CreatedAt);
+        });
         modelBuilder.Entity<SessionTemplate>(entity =>
         {
             entity.ToTable("session_templates");

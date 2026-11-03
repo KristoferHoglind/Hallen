@@ -364,3 +364,9 @@ Sessionens tabell och anekdoter använder samma `MatchResultsSummary`-komponent
 som Resultat i spelsessionen. Tabellen räknar hela sessionen även om matchlistan
 är paginerad. Visningen är läsande; matchregistrering och redigering finns i
 Spelöversikt. Direktlänk: `/grupper?grupp=GRUPP-ID&flik=resultat`.
+
+## Säkerhetsuppdateringen (.NET 10)
+
+Se [SECURITY.md](SECURITY.md) för CSRF, 2FA, administrationslogg, Supabase RLS,
+lösenordsrotation, begränsad runtime-roll, separat migrationskörning och krypterad
+backup. Lokal utveckling kräver nu .NET 10 SDK. Dockerbygget innehåller rätt version.

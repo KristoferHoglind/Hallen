@@ -14,6 +14,7 @@ import {
 } from "../api/invitationsApi";
 
 type Props = {
+  requiresTwoFactor?: boolean;
   currentUser: CurrentUser | null;
   isSubmitting: boolean;
   authError: string | null;
@@ -22,6 +23,7 @@ type Props = {
 };
 
 export function InvitationPage({
+  requiresTwoFactor,
   currentUser,
   isSubmitting,
   authError,
@@ -145,6 +147,7 @@ export function InvitationPage({
           </>
         ) : (
           <AuthPage
+            requiresTwoFactor={requiresTwoFactor}
             invitationToken={token}
             isSubmitting={isSubmitting}
             errorMessage={authError}

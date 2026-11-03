@@ -120,12 +120,41 @@ export async function createResultImage(
   )) {
     y += 10;
     text(match.name || `Match ${match.matchNumber}`, 26, true);
-    text(
-      match.teamResults
-        .map((r) => `${r.gameTeamName} ${r.score}`)
-        .join("  –  "),
-      26,
-    );
+    const rosterStart = y;
+    let rosterBottom = rosterStart;
+    match.teamResults.forEach((result, index) => {
+      y = rosterStart;
+      const columnWidth = match.teamResults.length === 2 ? 512 : 1072;
+      const x = match.teamResults.length === 2 ? 64 + index * 560 : 64;
+      if (match.teamResults.length !== 2) y = rosterBottom;
+      text(
+        `${result.gameTeamName} · ${result.score}`,
+        26,
+        true,
+        "#203c30",
+        x,
+        columnWidth,
+      );
+      const playerNames = [...result.players]
+        .sort(
+          (a, b) =>
+            a.playerName.localeCompare(b.playerName, "sv") ||
+            a.playerId.localeCompare(b.playerId),
+        )
+        .map((player) => player.playerName);
+      text(
+        playerNames.length
+          ? playerNames.join(", ")
+          : "Ingen spelaruppställning sparad.",
+        22,
+        false,
+        "#66736c",
+        x,
+        columnWidth,
+      );
+      rosterBottom = Math.max(rosterBottom, y);
+    });
+    y = rosterBottom + 12;
     if (match.winnerGameTeamId)
       text(
         `Utsedd vinnare: ${match.teamResults.find((r) => r.gameTeamId === match.winnerGameTeamId)?.gameTeamName ?? ""}`,

@@ -24,6 +24,11 @@ export function HomePage({ displayName, canCreateGroups, isSysAdmin }: Props) {
       text: "Ägare och admin kan skapa en spelsession från en mall eller från grunden, ändra deltagare och flytta markerade spelare mellan lag. Under Matcher väljer ni två lag, fyller i resultatet och sparar. Vid lika poäng kan ni utse en vinnare. Avsluta sessionen för att låsa den; ägare och admin kan öppna den igen.",
     },
     {
+      icon: "bi-shield-lock",
+      title: "Skydda ditt konto",
+      text: "Under Kontosäkerhet kan du aktivera tvåfaktorsinloggning med en autentiseringsapp. Spara de tio återställningskoderna på en säker plats om du skulle förlora telefonen.",
+    },
+    {
       icon: "bi-trophy",
       title: "Följ resultat och statistik",
       text: "Under Mina grupper kan du välja en spelsession i Sessionsstatistik och se matchresultat och sammanställning. Gruppstatistik visar totalstatistik, matchrekord och Vinstligan. Du kan välja datumperiod och sortera på kolumnerna. Personlig statistik visar formkurva och bästa radarpartners. I sessionens resultat finns utmärkelser och Dela resultat för att spara en resultatbild.",

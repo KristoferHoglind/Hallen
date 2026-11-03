@@ -18,6 +18,9 @@ public static class RateLimitingExtensions
                     ? Math.Ceiling(retryAfter.TotalSeconds).ToString(CultureInfo.InvariantCulture) : "60";
                 await context.HttpContext.Response.WriteAsJsonAsync("För många försök. Vänta en stund och försök igen.", cancellationToken);
             };
+            options.AddPolicy("security", context => RateLimitPartition.GetFixedWindowLimiter(
+                context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+                _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(5), QueueLimit = 0 }));
             options.AddPolicy("auth", context => RateLimitPartition.GetSlidingWindowLimiter(
                 context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                 _ => new SlidingWindowRateLimiterOptions

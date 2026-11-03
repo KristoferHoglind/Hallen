@@ -1,3 +1,4 @@
+import { apiFetch } from "../../../shared/api/apiFetch";
 import { API_BASE_URL } from "../../../config/api";
 import type {
   AddSportsGroupMemberRequest,
@@ -8,7 +9,7 @@ import type {
 export async function getSportsGroupMembers(
   sportsGroupId: string,
 ): Promise<SportsGroupMember[]> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/api/sports-groups/${sportsGroupId}/members`,
     {
       credentials: "include",
@@ -26,7 +27,7 @@ export async function addSportsGroupMember(
   sportsGroupId: string,
   request: AddSportsGroupMemberRequest,
 ): Promise<SportsGroupMember> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/api/sports-groups/${sportsGroupId}/members`,
     {
       method: "POST",
@@ -50,7 +51,7 @@ export async function updateSportsGroupMemberRole(
   memberId: string,
   request: UpdateSportsGroupMemberRoleRequest,
 ): Promise<SportsGroupMember> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/api/sports-groups/${sportsGroupId}/members/${memberId}/role`,
     {
       method: "PUT",
@@ -73,7 +74,7 @@ export async function removeSportsGroupMember(
   sportsGroupId: string,
   memberId: string,
 ): Promise<void> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/api/sports-groups/${sportsGroupId}/members/${memberId}`,
     {
       method: "DELETE",
@@ -89,7 +90,7 @@ export async function transferSportsGroupOwnership(
   sportsGroupId: string,
   memberId: string,
 ): Promise<void> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/api/sports-groups/${sportsGroupId}/members/${memberId}/transfer-ownership`,
     {
       method: "POST",

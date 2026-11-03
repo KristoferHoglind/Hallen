@@ -1,3 +1,4 @@
+import { apiFetch } from "../../../shared/api/apiFetch";
 import { useEffect, useState } from "react";
 import { Alert, Button, Form, Modal, Spinner, Table } from "react-bootstrap";
 import { API_BASE_URL } from "../../../config/api";
@@ -49,7 +50,7 @@ async function groupRequest<T>(
   path: string,
   body?: unknown,
 ): Promise<T> {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_BASE_URL}/api/sports-groups/${groupId}/${path}`,
     {
       method: body === undefined ? "GET" : "PUT",

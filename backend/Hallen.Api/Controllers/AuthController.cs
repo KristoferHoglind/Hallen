@@ -1,4 +1,7 @@
-﻿using Hallen.Application.Invitations;
+﻿using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+using Hallen.Application.Invitations;
 using Hallen.Database.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
@@ -118,12 +121,42 @@ public class AuthController(
             isPersistent: true,
             lockoutOnFailure: true);
 
-        if (!result.Succeeded)
-        {
-            return Unauthorized("Invalid email or password.");
+        if (result.RequiresTwoFactor) {
+            var principal = new ClaimsPrincipal(new ClaimsIdentity(new[] {
+                new Claim(ClaimTypes.Name,user.Id.ToString()), new Claim("Hallen.TwoFactorStamp",user.SecurityStamp ?? "")
+            }, IdentityConstants.TwoFactorUserIdScheme));
+            await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
+            await HttpContext.SignInAsync(IdentityConstants.TwoFactorUserIdScheme,principal,new AuthenticationProperties {ExpiresUtc=DateTimeOffset.UtcNow.AddMinutes(5)});
+            return Accepted(new {requiresTwoFactor=true});
         }
-
+        if (!result.Succeeded) return Unauthorized("Invalid email or password.");
         return Ok(ToDto(user));
+    }
+
+    public class TwoFactorLoginRequest {
+        [Required, StringLength(100)] public string Code { get; set; } = "";
+        public bool RecoveryCode { get; set; }
+    }
+    [HttpPost("two-factor"), AllowAnonymous]
+    public async Task<IActionResult> TwoFactor(TwoFactorLoginRequest request) {
+        var pending = await signInManager.GetTwoFactorAuthenticationUserAsync();
+        if (pending is null) return Unauthorized("Logga in med e-post och lösenord igen.");
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({pending.Id.ToString()}, 0))");
+        db.ChangeTracker.Clear();
+        var user=await userManager.FindByIdAsync(pending.Id.ToString());
+        if (user is null || user.Status != UserAccountStatus.Active || !user.TwoFactorEnabled || await userManager.IsLockedOutAsync(user)) return Unauthorized();
+        var pendingCookie=await HttpContext.AuthenticateAsync(IdentityConstants.TwoFactorUserIdScheme);
+        if (pendingCookie.Principal?.FindFirstValue("Hallen.TwoFactorStamp") != user.SecurityStamp) {
+            await HttpContext.SignOutAsync(IdentityConstants.TwoFactorUserIdScheme); return Unauthorized("Logga in med ditt aktuella lösenord igen.");
+        }
+        var result=request.RecoveryCode
+            ? await signInManager.TwoFactorRecoveryCodeSignInAsync(request.Code.Replace(" ",""))
+            : await signInManager.TwoFactorAuthenticatorSignInAsync(request.Code.Replace(" ","").Replace("-",""),true,false);
+        if (!result.Succeeded && request.RecoveryCode) await userManager.AccessFailedAsync(user);
+        if (result.Succeeded && request.RecoveryCode) await signInManager.SignInWithClaimsAsync(user,true,new[] {new Claim("Hallen.RecoveryLoginAt",DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture))});
+        await transaction.CommitAsync();
+        return result.Succeeded ? Ok(ToDto(user)) : Unauthorized("Koden är fel, använd eller har gått ut. Försök igen.");
     }
 
     [HttpPost("logout")]

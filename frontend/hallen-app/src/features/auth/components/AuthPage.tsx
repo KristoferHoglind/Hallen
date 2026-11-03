@@ -7,6 +7,7 @@ import { getRegistrationStatus } from "../api/authApi";
 type AuthMode = "login" | "register";
 
 type AuthPageProps = {
+  requiresTwoFactor?: boolean;
   invitationToken?: string;
   isSubmitting: boolean;
   errorMessage: string | null;
@@ -15,6 +16,7 @@ type AuthPageProps = {
 };
 
 export function AuthPage({
+  requiresTwoFactor = false,
   invitationToken,
   isSubmitting,
   errorMessage,
@@ -39,6 +41,8 @@ export function AuthPage({
     };
   }, [invitationToken]);
   const canRegister = Boolean(invitationToken) || bootstrapAllowed;
+  const [twoFactorCode, setTwoFactorCode] = useState("");
+  const [recoveryCode, setRecoveryCode] = useState(false);
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
@@ -48,6 +52,8 @@ export function AuthPage({
 
     if (mode === "login") {
       await onLogin({
+        twoFactorCode: requiresTwoFactor ? twoFactorCode : undefined,
+        recoveryCode,
         email,
         password,
       });
@@ -157,6 +163,35 @@ export function AuthPage({
               />
             </Form.Group>
 
+            {mode === "login" && requiresTwoFactor && (
+              <>
+                <Form.Group controlId="authTwoFactorCode" className="mb-3">
+                  <Form.Label>
+                    {recoveryCode ? "Återställningskod" : "Engångskod"}
+                  </Form.Label>
+                  <Form.Control
+                    value={twoFactorCode}
+                    autoComplete="one-time-code"
+                    inputMode={recoveryCode ? "text" : "numeric"}
+                    onChange={(e) => setTwoFactorCode(e.target.value)}
+                    disabled={isSubmitting}
+                    required
+                    autoFocus
+                  />
+                </Form.Group>
+                <Form.Check
+                  className="mb-3"
+                  id="authUseRecoveryCode"
+                  label="Använd en återställningskod"
+                  checked={recoveryCode}
+                  disabled={isSubmitting}
+                  onChange={(e) => {
+                    setRecoveryCode(e.target.checked);
+                    setTwoFactorCode("");
+                  }}
+                />
+              </>
+            )}
             <Button type="submit" className="w-100" disabled={isSubmitting}>
               {isSubmitting ? (
                 <>

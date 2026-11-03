@@ -16,8 +16,22 @@ if (Environment.GetEnvironmentVariable("RENDER_EXTERNAL_HOSTNAME") is { Length: 
     builder.Configuration["AllowedHosts"] = renderHost;
 }
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<Microsoft.EntityFrameworkCore.Diagnostics.ISaveChangesInterceptor, Hallen.Api.Security.AuditInterceptor>();
+builder.Services.AddScoped<Hallen.Api.Filters.CsrfFilter>();
+builder.Services.AddAntiforgery(options => {
+    options.HeaderName = "X-Hallen-CSRF";
+    options.SuppressXFrameOptionsHeader = true;
+    options.Cookie.Name = builder.Environment.IsDevelopment() ? "Hallen.Dev.Csrf" : "__Host-Hallen.Csrf";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() ? CookieSecurePolicy.None : CookieSecurePolicy.Always;
+});
 builder.Services.AddScoped<Hallen.Api.Filters.SessionWriteFilter>();
-builder.Services.AddControllers(options => options.Filters.AddService<Hallen.Api.Filters.SessionWriteFilter>());
+builder.Services.AddControllers(options => {
+    options.Filters.AddService<Hallen.Api.Filters.CsrfFilter>();
+    options.Filters.AddService<Hallen.Api.Filters.SessionWriteFilter>();
+});
 builder.Services.AddHallenRateLimiting(builder.Configuration);
 builder.Services.AddHallenApplication();
 builder.Services.AddHallenDatabase(builder.Configuration);
@@ -39,8 +53,12 @@ var app = builder.Build();
 
 if (migrateOnly || builder.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
 {
-    await using var scope = app.Services.CreateAsyncScope();
-    await scope.ServiceProvider.GetRequiredService<HallenDbContext>().Database.MigrateAsync();
+    // Use a separate owner connection for DDL; the normal application role needs no DDL rights.
+    var migrationConnection = builder.Configuration.GetConnectionString("MigrationConnection");
+    if (string.IsNullOrWhiteSpace(migrationConnection)) migrationConnection = builder.Configuration.GetConnectionString("DefaultConnection");
+    var migrationOptions = new DbContextOptionsBuilder<HallenDbContext>().UseNpgsql(migrationConnection).Options;
+    await using var migrationDb = new HallenDbContext(migrationOptions);
+    await migrationDb.Database.MigrateAsync();
 }
 if (migrateOnly) return;
 
@@ -70,6 +88,9 @@ app.Use(async (context, next) =>
         context.Response.Headers.CacheControl = "no-cache";
     context.Response.Headers.XContentTypeOptions = "nosniff";
     context.Response.Headers.XFrameOptions = "DENY";
+    context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+    if (!app.Environment.IsDevelopment())
+        context.Response.Headers["Content-Security-Policy"] = "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'";
     context.Response.Headers["Referrer-Policy"] = "no-referrer";
     await next();
 });
