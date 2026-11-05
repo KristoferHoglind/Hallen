@@ -167,7 +167,6 @@ export function useSportsGroupMembers(sportsGroupId: string) {
     (a, b) =>
       roleOrder[a.role] - roleOrder[b.role] ||
       a.displayName.localeCompare(b.displayName, "sv-SE") ||
-      a.email.localeCompare(b.email, "sv-SE") ||
       a.id.localeCompare(b.id),
   );
 

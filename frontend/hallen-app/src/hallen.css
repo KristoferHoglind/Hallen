@@ -768,3 +768,33 @@ body {
 .home-guide p { line-height: 1.65; }
 .home-roles summary { cursor: pointer; font-weight: 650; color: #17614c; }
 .home-roles dd { color: var(--bs-secondary-color); margin-bottom: 1rem; }
+
+.profile-page {
+  max-width: 680px;
+}
+.profile-section {
+  padding-block: 1.5rem;
+  border-bottom: 1px solid var(--bs-border-color);
+  scroll-margin-top: 1rem;
+}
+.profile-section:last-child {
+  border-bottom: 0;
+}
+.profile-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.5rem;
+  color: #17614c;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.profile-link:hover {
+  background: #edf0ea;
+}
+.profile-link[aria-current="page"] {
+  background: #17614c;
+  color: #fff;
+  font-weight: 700;
+}

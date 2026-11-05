@@ -10,7 +10,6 @@ export type SportsGroupMember = {
   id: string;
   sportsGroupId: string;
   appUserId: string;
-  email: string;
   displayName: string;
   role: SportsGroupMemberRole;
   status: SportsGroupMemberStatus;

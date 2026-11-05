@@ -53,6 +53,45 @@ const sessionFeatureChanges = [
 
 export const releases = [
   {
+    id: "2026-11-05-profile-and-administration",
+    date: "2026-11-05",
+    title: "Din profil och bättre gruppadministration",
+    introduction:
+      "Hantera dina profiluppgifter på ett ställe, håll koll på grupper du skapat och hitta de nya verktygen för systemadministration.",
+    changes: [
+      {
+        icon: "bi-person-circle",
+        title: "Min profil samlar dina kontouppgifter",
+        description:
+          "Klicka på ditt namn i menyn för att ändra profilnamn, byta lösenord och hantera tvåfaktorsinloggning. När du byter lösenord förblir du inloggad här, medan dina övriga sessioner avslutas.",
+      },
+      {
+        icon: "bi-eye-slash",
+        title: "Mer privata e-postadresser",
+        description:
+          "Medlemslistor visar profilnamn i stället för e-postadresser. I systemadministrationen visas andra kontons e-postadresser maskerade. Din egen fullständiga e-postadress finns under Min profil.",
+      },
+      {
+        icon: "bi-people",
+        title: "Se vilka grupper du skapat och hur många platser du har kvar",
+        description:
+          "Konton med behörighet att skapa grupper kan ha upp till 20 skapade grupper. Under Mina grupper visas antal och återstående platser, och dina grupper märks med Skapad av dig. Ägarbyte påverkar inte skaparens kvot; när gruppen raderas frigörs en plats. Systemadministratörer har ingen gräns.",
+      },
+      {
+        icon: "bi-shield-check",
+        title: "Systemadministration med två underflikar",
+        description:
+          "Konton och lösenord ligger nu under Systemadministration tillsammans med nya Gruppadministration. Systemadministratörer kan söka bland alla grupper i Hallen och se ägare, skapare, medlemmar, spelare, spelsessioner och matcher.",
+      },
+      {
+        icon: "bi-arrow-left-right",
+        title: "Hjälp grupper vidare när ägaren är frånvarande",
+        description:
+          "Systemadministratörer kan överlåta ägarskapet till en annan aktiv, godkänd medlem. Den tidigare ägaren blir administratör och gruppens innehåll behålls. Grupper kan också raderas permanent efter bekräftelse med gruppnamnet. Dialogen visar vad som försvinner, och åtgärderna registreras i administrationsloggen.",
+      },
+    ],
+  },
+  {
     id: "2026-11-03-security",
     date: "2026-11-03",
     title: "Mer spel, mindre fix!",

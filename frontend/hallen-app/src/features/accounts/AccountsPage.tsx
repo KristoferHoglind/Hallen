@@ -1,4 +1,3 @@
-import { AuditLogPanel } from "../security/AuditLogPanel";
 import { InvitationsPanel } from "../invitations/components/InvitationsPanel";
 import { useEffect, useState } from "react";
 import {
@@ -171,7 +170,6 @@ export function AccountsPage({
   currentUserId: string;
   onPermissionsChanged: () => Promise<void>;
 }) {
-  const [showAudit, setShowAudit] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState<Account | null>(null);
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
@@ -264,7 +262,7 @@ export function AccountsPage({
   );
   return (
     <div>
-      <h1 className="page-title">Konton och lösenord</h1>
+      <h2 className="h4">Konton och lösenord</h2>
       <p className="text-muted">
         Hantera systembehörigheter för Hallens konton. Flera personer kan vara
         systemadministratörer.
@@ -307,12 +305,16 @@ export function AccountsPage({
             </Alert>
           )}
           <h2 className="h5 mt-4">Kontobehörigheter</h2>
+          <p className="text-muted small">
+            E-postadresser visas maskerade för att skydda användarnas
+            integritet.
+          </p>
           <div className="d-flex flex-wrap align-items-end gap-3 mb-3">
             <Form.Group controlId="accountSearch" className="flex-grow-1">
               <Form.Label>Sök konto</Form.Label>
               <Form.Control
                 type="search"
-                placeholder="Namn eller e-postadress"
+                placeholder="Namn eller e-postdomän"
                 value={search}
                 onChange={(event) => {
                   setSearch(event.target.value);
@@ -344,7 +346,7 @@ export function AccountsPage({
           {filtered.length === 0 ? (
             <p>
               {query
-                ? "Inga konton matchar din sökning. Prova ett annat namn eller en annan e-postadress."
+                ? "Inga konton matchar din sökning. Prova ett annat namn eller en annan e-postdomän."
                 : "Det finns inga konton ännu."}
             </p>
           ) : (
@@ -436,13 +438,6 @@ export function AccountsPage({
           )}
         </>
       )}
-      <details
-        className="mt-4"
-        onToggle={(event) => setShowAudit(event.currentTarget.open)}
-      >
-        <summary>Administrationslogg</summary>
-        {showAudit && <AuditLogPanel />}
-      </details>
     </div>
   );
 }

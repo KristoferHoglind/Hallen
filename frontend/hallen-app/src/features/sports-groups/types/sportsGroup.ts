@@ -8,6 +8,7 @@ export type SportsGroup = {
   currentUserRole: SportsGroupRole | "";
   canManage: boolean;
   isOwner: boolean;
+  isCreatedByCurrentUser: boolean;
 };
 
 export type CreateSportsGroupRequest = {

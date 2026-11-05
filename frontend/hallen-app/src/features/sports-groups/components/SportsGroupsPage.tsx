@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   createSportsGroup,
+  getGroupCreationQuota,
+  type GroupCreationQuota,
   deleteSportsGroup,
   getSportsGroups,
   getSportsGroup,
@@ -20,6 +22,7 @@ export function SportsGroupsPage({
   currentUserId: string;
   canCreateGroups: boolean;
 }) {
+  const [quota, setQuota] = useState<GroupCreationQuota | null>(null);
   const [searchParams] = useSearchParams();
   const requestedGroupId = searchParams.get("grupp");
   const [sportsGroups, setSportsGroups] = useState<SportsGroup[]>([]);
@@ -49,13 +52,17 @@ export function SportsGroupsPage({
 
     async function loadInitialSportsGroups() {
       try {
-        const result = await getSportsGroups();
+        const [result, creationQuota] = await Promise.all([
+          getSportsGroups(),
+          getGroupCreationQuota(),
+        ]);
 
         if (!isMounted) {
           return;
         }
 
         setSportsGroups(result);
+        setQuota(creationQuota);
         setErrorMessage(null);
 
         setSelectedSportsGroup(
@@ -83,12 +90,23 @@ export function SportsGroupsPage({
     };
   }, [requestedGroupId]);
 
+  async function refreshCreationQuota() {
+    try {
+      setQuota(await getGroupCreationQuota());
+    } catch {
+      setQuota(null);
+      setErrorMessage(
+        "Gruppen är sparad men gruppgränsen kunde inte uppdateras. Ladda om sidan innan du skapar fler grupper.",
+      );
+    }
+  }
+
   async function handleCreateSportsGroup(event: React.FormEvent) {
     event.preventDefault();
 
     const trimmedName = newGroupName.trim();
 
-    if (!trimmedName) {
+    if (!trimmedName || !quota?.canCreate) {
       return;
     }
 
@@ -109,8 +127,14 @@ export function SportsGroupsPage({
       setSelectedSportsGroup(createdSportsGroup);
       setNewGroupName("");
       setIsCreatingGroup(false);
-    } catch {
-      setCreateErrorMessage("Kunde inte skapa grupp.");
+      await refreshCreationQuota();
+    } catch (cause) {
+      setCreateErrorMessage(
+        cause instanceof Error ? cause.message : "Kunde inte skapa grupp.",
+      );
+      void getGroupCreationQuota()
+        .then(setQuota)
+        .catch(() => {});
     } finally {
       setIsSaving(false);
     }
@@ -208,6 +232,7 @@ export function SportsGroupsPage({
       }
 
       closeDeleteSportsGroupModal();
+      await refreshCreationQuota();
     } catch {
       setErrorMessage("Kunde inte ta bort grupp.");
     } finally {
@@ -242,6 +267,18 @@ export function SportsGroupsPage({
         </div>
       </div>
 
+      {quota && (
+        <p className="text-muted" role="status">
+          {!canCreateGroups
+            ? `${quota.createdCount} skapade grupper`
+            : quota.limit === null
+              ? `${quota.createdCount} skapade grupper · Ingen gräns för systemadministratörer`
+              : `${quota.createdCount}/${quota.limit} skapade grupper · ${quota.remaining} kvar till gränsen`}
+          {canCreateGroups && quota.remaining === 0 &&
+            " · Du har nått gränsen. Ta bort en grupp för att skapa en ny."}
+        </p>
+      )}
+
       <GroupAdminTab
         currentUserId={currentUserId}
         initialGroupTab={
@@ -255,6 +292,7 @@ export function SportsGroupsPage({
         }
         onGroupPermissionsChanged={handleGroupPermissionsChanged}
         canCreateGroups={canCreateGroups}
+        createDisabled={!quota?.canCreate || isLoading}
         sportsGroups={sportsGroups}
         selectedSportsGroup={selectedSportsGroup}
         isLoading={isLoading}

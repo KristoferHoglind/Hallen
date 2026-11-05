@@ -26,6 +26,12 @@ public class SportsGroupsController(ISportsGroupService sportsGroupService, IPla
         return Ok(sportsGroups);
     }
 
+    [HttpGet("creation-quota")]
+    public async Task<ActionResult<GroupCreationQuotaDto>> GetCreationQuota()
+    {
+        return Ok(await sportsGroupService.GetCreationQuotaAsync(User.GetUserId()));
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<SportsGroupDto>> GetSportsGroup(Guid id)
     {
@@ -49,9 +55,17 @@ public class SportsGroupsController(ISportsGroupService sportsGroupService, IPla
         if (!await db.Users.AnyAsync(user => user.Id == appUserId && user.Status == UserAccountStatus.Active && user.CanCreateGroups))
             return Forbid();
 
-        var sportsGroup = await sportsGroupService.CreateSportsGroupAsync(
-            request,
-            appUserId);
+        SportsGroupDto sportsGroup;
+        try
+        {
+            sportsGroup = await sportsGroupService.CreateSportsGroupAsync(
+                request,
+                appUserId);
+        }
+        catch (GroupCreationDeniedException exception)
+        {
+            return Conflict(new { message = exception.Message });
+        }
 
         return CreatedAtAction(
             nameof(GetSportsGroup),

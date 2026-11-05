@@ -56,7 +56,17 @@ export function SportsGroupsListCard({
                       aria-controls={`group-content-${group.id}`}
                       onClick={() => onSelectSportsGroup(isOpen ? null : group)}
                     >
-                      {group.name}
+                      <span className="d-flex flex-wrap align-items-center gap-2">
+                        <span>{group.name}</span>
+                        {group.isCreatedByCurrentUser && (
+                          <span
+                            className="badge text-bg-light border fw-normal"
+                            title="Den här gruppen räknas till dina skapade grupper, oavsett vem som är ägare."
+                          >
+                            Skapad av dig
+                          </span>
+                        )}
+                      </span>
                     </button>
                   </h3>
                   {group.isOwner && (

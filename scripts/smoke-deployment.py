@@ -114,7 +114,7 @@ def main():
         wait_ready()
         assert request("GET", "/healthz", proxy=False)[0] == 200
         assert request("GET", "/api/auth/me", proxy=False)[0] in (307, 308)
-        for path in ("/", "/spela", "/grupper", "/medlemmar", "/inbjudan"):
+        for path in ("/", "/spela", "/grupper", "/medlemmar", "/inbjudan", "/systemadministration", "/systemadministration/grupper", "/konton"):
             status, headers, body = request("GET", path)
             assert status == 200 and '<div id="root">' in body, path
             assert headers.get("cache-control") == "no-cache", path
@@ -169,6 +169,28 @@ def main():
         assert membership["currentUserRole"] == "Member" and not membership["canManage"]
         own_group, _ = api("POST", "/api/sports-groups", {"name": "Invited user's own group"}, outsider_cookie, 201)
         assert own_group["isOwner"] and own_group["currentUserRole"] == "Owner"
+
+        quota = api("GET", "/api/sports-groups/creation-quota", cookie=outsider_cookie)[0]
+        assert quota == {"createdCount": 1, "limit": 20, "canCreate": True, "remaining": 19}
+        quota_groups = [api("POST", "/api/sports-groups", {"name": f"Quota {i}"}, outsider_cookie, 201)[0]
+                        for i in range(18)]
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            attempts = list(pool.map(lambda i: request("POST", "/api/sports-groups", {"name": f"Concurrent quota {i}"}, outsider_cookie), range(4)))
+        assert sorted(result[0] for result in attempts) == [201, 409, 409, 409]
+        quota_groups.extend(json.loads(body) for status, _, body in attempts if status == 201)
+        quota = api("GET", "/api/sports-groups/creation-quota", cookie=outsider_cookie)[0]
+        assert quota == {"createdCount": 20, "limit": 20, "canCreate": False, "remaining": 0}
+        api("DELETE", "/api/sports-groups/" + quota_groups.pop()["id"], cookie=outsider_cookie, expected=204)
+        quota_groups.append(api("POST", "/api/sports-groups", {"name": "Freed quota slot"}, outsider_cookie, 201)[0])
+        for quota_group in quota_groups:
+            api("DELETE", "/api/sports-groups/" + quota_group["id"], cookie=outsider_cookie, expected=204)
+        admin_groups = [api("POST", "/api/sports-groups", {"name": f"Unlimited admin {i}"}, cookie, 201)[0]
+                        for i in range(21)]
+        admin_quota = api("GET", "/api/sports-groups/creation-quota", cookie=cookie)[0]
+        assert admin_quota["createdCount"] > 20 and admin_quota["limit"] is None and admin_quota["remaining"] is None and admin_quota["canCreate"]
+        for quota_group in admin_groups:
+            api("DELETE", "/api/sports-groups/" + quota_group["id"], cookie=cookie, expected=204)
+        print("OK: group quota counts creators, serializes concurrent creation, frees deleted slots and exempts system administrators")
         assert request("POST", invite_path, {"role": "Member"}, outsider_cookie)[0] == 403
         assert request("GET", invite_path, cookie=outsider_cookie)[0] == 403
         assert api("GET", group_path + "/members", cookie=outsider_cookie)[0] == []
@@ -361,6 +383,7 @@ def main():
         api("POST", recovery_group + owner["id"], {}, cookie, 403)
         api("POST", "/api/password-recovery/groups/" + own_group["id"] + "/users/" + admin["id"], {}, outsider_cookie, 403)
         member_rows = api("GET", group_path + "/members", cookie=cookie)[0]
+        assert member_rows and all("email" not in member for member in member_rows)
         admin_member = next(row for row in member_rows if row["appUserId"] == admin["id"])
         api("PUT", group_path + "/members/" + admin_member["id"] + "/role", {"role": "Member"}, cookie)
         assert preview(admin_link["token"]) == 400
@@ -379,6 +402,7 @@ def main():
         api("POST", recovery + "/users/" + outsider["id"], {}, outsider_cookie, 403)
         accounts = api("GET", recovery + "/users", cookie=cookie)[0]
         assert any(account["id"] == outsider["id"] for account in accounts)
+        assert next(account for account in accounts if account["id"] == outsider["id"])["email"] == "o***@example.test"
         reset = api("POST", recovery + "/users/" + outsider["id"], {}, cookie)[0]
         reset = api("POST", recovery_group + outsider["id"], {}, cookie)[0]
         api("POST", recovery_group + outsider["id"], {}, admin_cookie, 403)
@@ -392,7 +416,7 @@ def main():
         api("POST", "/api/auth/login", {"email": "outsider@example.test", "password": "Smoke-test-12345"}, expected=401)
         _, renewed_outsider = api("POST", "/api/auth/login", {"email": "outsider@example.test", "password": "Replacement-12345"})
         outsider_cookie = renewed_outsider["set-cookie"].split(";", 1)[0]
-        locked_user = next(account for account in api("GET", recovery + "/users", cookie=cookie)[0] if account["email"] == "locked@example.test")
+        locked_user = next(account for account in api("GET", recovery + "/users", cookie=cookie)[0] if account["displayName"] == "locked")
         locked_reset = api("POST", recovery + "/users/" + locked_user["id"], {}, cookie)[0]
         api("POST", recovery + "/reset", {"userId": locked_user["id"], "token": locked_reset["token"], "password": "Replacement-12345"}, expected=204)
         api("POST", "/api/auth/login", {"email": "locked@example.test", "password": "Replacement-12345"})
@@ -401,6 +425,8 @@ def main():
         # Account permissions are system-wide and are checked against current DB state.
         api("GET", "/api/accounts", expected=401)
         api("GET", "/api/accounts", cookie=admin_cookie, expected=403)
+        masked_accounts = api("GET", "/api/accounts", cookie=cookie)[0]
+        assert next(account for account in masked_accounts if account["id"] == outsider["id"])["email"] == "o***@example.test"
         account_path = "/api/accounts/" + admin["id"] + "/permissions"
         api("PUT", account_path, {"isSysAdmin": True, "canCreateGroups": True}, admin_cookie, 403)
         owner_permissions = "/api/accounts/" + owner["id"] + "/permissions"
@@ -458,6 +484,78 @@ def main():
         assert preview(untrusted_issuer["token"]) == 400
         api("POST", hallen_path, {}, admin_cookie, 403)
         print("OK: multiple system admins, immediate revocation, group creation permissions and concurrent last-admin protection")
+
+        # System administrators manage groups without membership or ownership.
+        system_groups = "/api/system/groups"
+        api("GET", system_groups, expected=401)
+        api("GET", system_groups, cookie=outsider_cookie, expected=403)
+        api("GET", system_groups, cookie=admin_cookie, expected=403)
+        managed = api("POST", "/api/sports-groups", {"name": "System managed group"}, outsider_cookie, 201)[0]
+        managed_path = "/api/sports-groups/" + managed["id"]
+        managed_admin = system_groups + "/" + managed["id"]
+        successor = api("POST", managed_path + "/members", {"email": "admin@example.test", "role": "Member"}, outsider_cookie)[0]
+        second_successor = api("POST", managed_path + "/members", {"email": "no-group@example.test", "role": "Admin"}, outsider_cookie)[0]
+        original_owner = next(row for row in api("GET", managed_path + "/members", cookie=outsider_cookie)[0] if row["appUserId"] == outsider["id"])
+        managed_players = [api("POST", managed_path + "/players", {"name": name}, outsider_cookie, 201)[0] for name in ("Managed A", "Managed B")]
+        managed_session = api("POST", managed_path + "/game-sessions", {"name": "Preserved on transfer", "startsAt": datetime.now(timezone.utc).isoformat(), "numberOfTeams": 2, "playerIds": [row["id"] for row in managed_players]}, outsider_cookie, 201)[0]
+        managed_session_path = "/api/game-sessions/" + managed_session["id"]
+        managed_setup = api("POST", managed_session_path + "/teams/randomize", cookie=outsider_cookie)[0]
+        managed_match = api("POST", managed_session_path + "/matches", match_body([row["id"] for row in managed_setup["teams"]], [2, 1]), outsider_cookie, 201)[0]
+        before_quota = api("GET", "/api/sports-groups/creation-quota", cookie=outsider_cookie)[0]
+        api("GET", managed_path, cookie=cookie, expected=404)
+        admin_row = next(row for row in api("GET", system_groups, cookie=cookie)[0] if row["id"] == managed["id"])
+        assert admin_row["creatorName"] == "outsider" and admin_row["owner"]["memberId"] == original_owner["id"]
+        assert (admin_row["memberCount"], admin_row["playerCount"], admin_row["sessionCount"], admin_row["matchCount"]) == (3, 2, 1, 1)
+        candidates = api("GET", managed_admin + "/ownership-candidates", cookie=cookie)[0]
+        assert {row["memberId"] for row in candidates} == {successor["id"], second_successor["id"]}
+        assert all("***@" in row["email"] for row in candidates)
+        transfer_payload = {"memberId": successor["id"], "expectedOwnerMemberId": original_owner["id"]}
+        delete_payload = {"confirmationName": managed["name"], "expectedOwnerMemberId": original_owner["id"]}
+        for auth, expected in [(None, 401), (outsider_cookie, 403), (admin_cookie, 403)]:
+            api("GET", managed_admin + "/ownership-candidates", cookie=auth, expected=expected)
+            api("PUT", managed_admin + "/owner", transfer_payload, auth, expected)
+            api("DELETE", managed_admin, delete_payload, auth, expected)
+        api("PUT", managed_admin + "/owner", {**transfer_payload, "memberId": original_owner["id"]}, cookie, 400)
+        foreign = next(row for row in api("GET", group_path + "/members", cookie=cookie)[0] if row["appUserId"] == owner["id"])
+        api("PUT", managed_admin + "/owner", {**transfer_payload, "memberId": foreign["id"]}, cookie, 400)
+        # Inactive members cannot be selected, even with a previously loaded candidate ID.
+        docker("exec", db, "psql", "-U", "hallen", "-d", "hallen_test", "-c", 'UPDATE "AspNetUsers" SET "Status" = \'Disabled\' WHERE "Id" = \'' + hallen_user["id"] + "'")
+        assert len(api("GET", managed_admin + "/ownership-candidates", cookie=cookie)[0]) == 1
+        api("PUT", managed_admin + "/owner", {**transfer_payload, "memberId": second_successor["id"]}, cookie, 400)
+        docker("exec", db, "psql", "-U", "hallen", "-d", "hallen_test", "-c", 'UPDATE "AspNetUsers" SET "Status" = \'Active\' WHERE "Id" = \'' + hallen_user["id"] + "'")
+        # Membership approval and account activity are both required.
+        docker("exec", db, "psql", "-U", "hallen", "-d", "hallen_test", "-c", 'UPDATE "SportsGroupMembers" SET "Status" = \'PendingApproval\' WHERE "Id" = \'' + second_successor["id"] + "'")
+        api("PUT", managed_admin + "/owner", {**transfer_payload, "memberId": second_successor["id"]}, cookie, 400)
+        assert len(api("GET", managed_admin + "/ownership-candidates", cookie=cookie)[0]) == 1
+        docker("exec", db, "psql", "-U", "hallen", "-d", "hallen_test", "-c", 'UPDATE "SportsGroupMembers" SET "Status" = \'Approved\' WHERE "Id" = \'' + second_successor["id"] + "'")
+        # A system administrator can rescue a group whose owner is inactive.
+        docker("exec", db, "psql", "-U", "hallen", "-d", "hallen_test", "-c", 'UPDATE "AspNetUsers" SET "Status" = \'Disabled\' WHERE "Id" = \'' + outsider["id"] + "'")
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(lambda member_id: request("PUT", managed_admin + "/owner", {**transfer_payload, "memberId": member_id}, cookie)[0], [successor["id"], second_successor["id"]]))
+        assert sorted(results) == [204, 409], results
+        docker("exec", db, "psql", "-U", "hallen", "-d", "hallen_test", "-c", 'UPDATE "AspNetUsers" SET "Status" = \'Active\' WHERE "Id" = \'' + outsider["id"] + "'")
+        assert api("GET", "/api/sports-groups/creation-quota", cookie=outsider_cookie)[0] == before_quota
+        assert api("GET", "/api/game-matches/" + managed_match["id"], cookie=outsider_cookie)[0]["id"] == managed_match["id"]
+        assert api("GET", managed_path, cookie=outsider_cookie)[0]["isCreatedByCurrentUser"]
+        updated_members = api("GET", managed_path + "/members", cookie=outsider_cookie)[0]
+        assert sum(row["role"] == "Owner" for row in updated_members) == 1
+        assert next(row for row in updated_members if row["id"] == original_owner["id"])["role"] == "Admin"
+        api("DELETE", managed_admin, delete_payload, cookie, 409)
+        new_owner_id = next(row["id"] for row in updated_members if row["role"] == "Owner")
+        delete_payload["expectedOwnerMemberId"] = new_owner_id
+        api("DELETE", managed_admin, {**delete_payload, "confirmationName": "Wrong name"}, cookie, 400)
+        api("DELETE", managed_admin, delete_payload, cookie, 204)
+        assert all(row["id"] != managed["id"] for row in api("GET", system_groups, cookie=cookie)[0])
+        api("GET", managed_admin + "/ownership-candidates", cookie=cookie, expected=404)
+        api("DELETE", managed_admin, delete_payload, cookie, 404)
+        api("GET", managed_session_path + "/setup", cookie=outsider_cookie, expected=404)
+        assert api("GET", "/api/sports-groups/creation-quota", cookie=outsider_cookie)[0]["createdCount"] == before_quota["createdCount"] - 1
+        cascade_count = docker("exec", db, "psql", "-U", "hallen", "-d", "hallen_test", "-Atc", "SELECT count(*) FROM game_matches WHERE id = '" + managed_match["id"] + "'")
+        assert cascade_count == "0"
+        events = api("GET", "/api/accounts/audit?pageSize=50", cookie=cookie)[0]["items"]
+        assert any(row["entityType"] == "SportsGroup" and row["entityId"] == managed["id"] and row["action"] == "Deleted" for row in events)
+        assert any(row["entityType"] == "SportsGroupMember" and row["entityId"] in {successor["id"], second_successor["id"]} and "Role" in row["changedFields"] for row in events)
+        print("OK: system group directory, non-member administration, masked candidates, active member validation, atomic ownership transfers, stale confirmations, cascaded deletion, creator quota and audit events")
 
         # Owner changes require the dedicated transfer action; group/system roles are independent.
         rows = api("GET", group_path + "/members", cookie=cookie)[0]
@@ -560,6 +658,7 @@ def main():
         candidate_b = api("POST", group_paths[1] + "/members", {"email": "successor-b@example.test", "role": "Member"}, doomed_cookie)[0]
         initial_plan = api("GET", deletion_path + "/deletion", cookie=cookie)[0]
         assert len(initial_plan["ownedGroups"]) == 3
+        assert all(candidate["email"] == "s***@example.test" for group in initial_plan["ownedGroups"] for candidate in group["candidates"])
         assert next(item for item in initial_plan["ownedGroups"] if item["groupId"] == owned_groups[2]["id"])["candidates"] == []
         api("DELETE", deletion_path, {"ownershipTransfers": []}, cookie, 400)
         candidate_solo = api("POST", group_paths[2] + "/members", {"email": "successor-a@example.test", "role": "Member"}, doomed_cookie)[0]
@@ -837,6 +936,26 @@ def main():
             assert probe.returncode != 0 and "permission denied" in probe.stderr
         print("OK: CSRF rejects missing tokens, CSP/headers, real TOTP, single-use recovery, safe lost-phone reset, stamp revocation and redacted audit log")
         print("OK: RLS and revoked grants deny Supabase anon/authenticated direct reads of users and encryption keys")
+        # Self-service profile edits never accept a target account identifier.
+        api("PUT", "/api/profile", {"displayName": "Anonymous"}, expected=401)
+        api("PUT", "/api/profile", {"displayName": "   "}, disabled_cookie, 400)
+        api("PUT", "/api/profile", {"displayName": "x" * 101}, disabled_cookie, 400)
+        api("PUT", "/api/profile", {"displayName": "  Nytt profilnamn  "}, disabled_cookie, 204)
+        assert api("GET", "/api/auth/me", cookie=disabled_cookie)[0]["displayName"] == "Nytt profilnamn"
+        assert api("GET", "/api/auth/me", cookie=cookie)[0]["displayName"] == "owner"
+        change = {"currentPassword": "wrong-password", "newPassword": "Changed-profile-12345"}
+        api("POST", "/api/profile/password", change, disabled_cookie, 400)
+        change["currentPassword"] = "Smoke-test-12345"
+        api("POST", "/api/profile/password", {**change, "newPassword": "weakpassword"}, disabled_cookie, 400)
+        api("GET", "/api/auth/me", cookie=disabled_cookie)
+        api("POST", "/api/profile/password", {**change, "newPassword": change["currentPassword"]}, disabled_cookie, 400)
+        _, changed_headers = api("POST", "/api/profile/password", change, disabled_cookie, 204)
+        changed_cookie = changed_headers["set-cookie"].split(";", 1)[0]
+        api("GET", "/api/auth/me", cookie=changed_cookie)
+        api("GET", "/api/auth/me", cookie=disabled_cookie, expected=401)
+        api("POST", "/api/auth/login", {"email": "feature-reader@example.test", "password": "Smoke-test-12345"}, expected=401)
+        api("POST", "/api/auth/login", {"email": "feature-reader@example.test", "password": change["newPassword"]})
+        print("OK: own profile validation, trimmed names, password verification/policy, refreshed current session and revoked old sessions")
         actual, _ = api("GET", "/api/auth/me", cookie=cookie)
         assert actual["id"] == owner["id"], "Login did not survive a fresh container"
         assert api("GET", group_path, cookie=cookie)[0]["id"] == group["id"]

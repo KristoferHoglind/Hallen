@@ -26,7 +26,7 @@ export function HomePage({ displayName, canCreateGroups, isSysAdmin }: Props) {
     {
       icon: "bi-shield-lock",
       title: "Skydda ditt konto",
-      text: "Under Kontosäkerhet kan du aktivera tvåfaktorsinloggning med en autentiseringsapp. Spara de tio återställningskoderna på en säker plats om du skulle förlora telefonen.",
+      text: "Klicka på ditt namn i menyn för att öppna Min profil. Under Kontosäkerhet kan du aktivera tvåfaktorsinloggning med en autentiseringsapp. Spara de tio återställningskoderna på en säker plats om du skulle förlora telefonen.",
     },
     {
       icon: "bi-trophy",
@@ -108,9 +108,10 @@ export function HomePage({ displayName, canCreateGroups, isSysAdmin }: Props) {
             Du är systemadministratör
           </h2>
           <p className="text-muted mb-0">
-            Under <Link to="/konton">Konton och lösenord</Link> kan du bjuda in
-            till Hallen, hantera kontobehörigheter och hjälpa till med
-            lösenordsåterställning.
+            Under <Link to="/systemadministration">Systemadministration</Link>{" "}
+            kan du bjuda in till Hallen, hantera kontobehörigheter och hjälpa
+            till med lösenordsåterställning samt överlåta ägarskap och radera
+            grupper.
           </p>
         </section>
       )}

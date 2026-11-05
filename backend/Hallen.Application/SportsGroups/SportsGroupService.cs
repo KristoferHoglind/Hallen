@@ -8,6 +8,18 @@ namespace Hallen.Application.SportsGroups;
 
 public class SportsGroupService(HallenDbContext dbContext, ISportsGroupAuthorizationService authorizationService) : ISportsGroupService
 {
+    public const int GroupCreationLimit = 20;
+
+    public async Task<GroupCreationQuotaDto> GetCreationQuotaAsync(Guid appUserId)
+    {
+        var user = await dbContext.Users.SingleAsync(user => user.Id == appUserId);
+        var count = await dbContext.SportsGroups.CountAsync(group => group.CreatedByUserId == appUserId);
+        int? limit = user.IsSysAdmin ? null : GroupCreationLimit;
+        return new GroupCreationQuotaDto(count, limit,
+            user.Status == UserAccountStatus.Active && user.CanCreateGroups &&
+            (!limit.HasValue || count < limit.Value));
+    }
+
     public async Task<List<SportsGroupDto>> GetSportsGroupsAsync(Guid appUserId)
     {
         return await dbContext.SportsGroupMembers
@@ -26,6 +38,7 @@ public class SportsGroupService(HallenDbContext dbContext, ISportsGroupAuthoriza
                     member.Role == SportsGroupRole.Owner ||
                     member.Role == SportsGroupRole.Admin,
                 IsOwner = member.Role == SportsGroupRole.Owner,
+                IsCreatedByCurrentUser = member.SportsGroup.CreatedByUserId == appUserId,
             })
             .ToListAsync();
     }
@@ -48,6 +61,7 @@ public class SportsGroupService(HallenDbContext dbContext, ISportsGroupAuthoriza
                     member.Role == SportsGroupRole.Owner ||
                     member.Role == SportsGroupRole.Admin,
                 IsOwner = member.Role == SportsGroupRole.Owner,
+                IsCreatedByCurrentUser = member.SportsGroup.CreatedByUserId == appUserId,
             })
             .FirstOrDefaultAsync();
     }
@@ -61,12 +75,20 @@ public class SportsGroupService(HallenDbContext dbContext, ISportsGroupAuthoriza
             throw new ArgumentException("Sports group name is required.");
         }
 
+        await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        // Serialize creation per account so concurrent requests cannot exceed the quota.
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"SELECT \"Id\" FROM \"AspNetUsers\" WHERE \"Id\" = {appUserId} FOR UPDATE");
+        var quota = await GetCreationQuotaAsync(appUserId);
+        if (!quota.CanCreate)
+            throw new GroupCreationDeniedException();
+
         var createdAt = DateTimeOffset.UtcNow;
 
         var sportsGroup = new SportsGroup
         {
             Id = Guid.NewGuid(),
             Name = trimmedName,
+            CreatedByUserId = appUserId,
             CreatedAt = createdAt,
         };
 
@@ -86,6 +108,7 @@ public class SportsGroupService(HallenDbContext dbContext, ISportsGroupAuthoriza
         dbContext.SportsGroupMembers.Add(ownerMembership);
 
         await dbContext.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         return new SportsGroupDto
         {
@@ -95,6 +118,7 @@ public class SportsGroupService(HallenDbContext dbContext, ISportsGroupAuthoriza
             CurrentUserRole = SportsGroupRole.Owner.ToString(),
             CanManage = true,
             IsOwner = true,
+            IsCreatedByCurrentUser = true,
         };
     }
 
@@ -148,6 +172,7 @@ public class SportsGroupService(HallenDbContext dbContext, ISportsGroupAuthoriza
             return false;
         }
 
+        await SportsGroupDeletion.DeleteContentsAsync(dbContext, id);
         dbContext.SportsGroups.Remove(sportsGroup);
 
         await dbContext.SaveChangesAsync();

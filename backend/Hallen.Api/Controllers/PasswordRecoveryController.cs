@@ -1,3 +1,4 @@
+using Hallen.Common.Privacy;
 using System.ComponentModel.DataAnnotations;
 using Hallen.Api.Extensions;
 using Hallen.Database.Data;
@@ -22,7 +23,7 @@ public class PasswordRecoveryController(UserManager<AppUser> users, HallenDbCont
     {
         if (!await IsAdmin()) return Forbid();
         return Ok(await db.Users.AsNoTracking().OrderBy(user => user.DisplayName)
-            .Select(user => new { user.Id, user.DisplayName, user.Email, active = user.Status == UserAccountStatus.Active }).ToListAsync());
+            .Select(user => new { user.Id, user.DisplayName, Email = EmailPrivacy.Mask(user.Email), active = user.Status == UserAccountStatus.Active }).ToListAsync());
     }
 
     [HttpPost("users/{id:guid}")]

@@ -127,7 +127,6 @@ export function SportsGroupMembersPanel({
           <thead>
             <tr>
               <th>Namn</th>
-              <th>E-post</th>
               <th>Roll</th>
               <th>Status</th>
               {isOwner && <th className="text-end">Åtgärder</th>}
@@ -137,7 +136,6 @@ export function SportsGroupMembersPanel({
             {members.map((member) => (
               <tr key={member.id}>
                 <td>{member.displayName}</td>
-                <td>{member.email}</td>
                 <td>
                   {canManage &&
                   member.role !== "Owner" &&
@@ -268,8 +266,7 @@ export function SportsGroupMembersPanel({
         <Modal.Body>
           <p>
             Vill du överföra gruppens ägarskap till{" "}
-            <strong>{transferTarget?.displayName}</strong> (
-            {transferTarget?.email})?
+            <strong>{transferTarget?.displayName}</strong>?
           </p>
           <p className="mb-0">
             Personen blir gruppens enda ägare och du blir administratör. Du kan
@@ -344,7 +341,6 @@ export function SportsGroupMembersPanel({
                   .map((member) => ({
                     id: member.appUserId,
                     displayName: member.displayName,
-                    email: member.email,
                     active: true,
                   }))}
               />

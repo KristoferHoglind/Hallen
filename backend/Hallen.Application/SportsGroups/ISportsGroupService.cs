@@ -4,6 +4,8 @@ namespace Hallen.Application.SportsGroups;
 
 public interface ISportsGroupService
 {
+    Task<GroupCreationQuotaDto> GetCreationQuotaAsync(Guid appUserId);
+
     Task<List<SportsGroupDto>> GetSportsGroupsAsync(Guid appUserId);
 
     Task<SportsGroupDto?> GetSportsGroupAsync(Guid id, Guid appUserId);

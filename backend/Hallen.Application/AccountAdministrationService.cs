@@ -1,3 +1,4 @@
+using Hallen.Common.Privacy;
 using Hallen.Common.DTOs.Auth;
 using Hallen.Database.Data;
 using Hallen.Database.Entities;
@@ -25,7 +26,7 @@ public class AccountAdministrationService(HallenDbContext db, UserManager<AppUse
                 (member.Role == SportsGroupRole.Member || member.Role == SportsGroupRole.Admin))
             .OrderBy(member => member.Role).ThenBy(member => member.AppUser.DisplayName)
             .Select(member => new { member.SportsGroupId, Candidate = new OwnershipCandidateDto(member.Id, member.AppUserId,
-                member.AppUser.DisplayName, member.AppUser.Email ?? "", member.Role.ToString()) }).ToListAsync();
+                member.AppUser.DisplayName, EmailPrivacy.Mask(member.AppUser.Email), member.Role.ToString()) }).ToListAsync();
         return new(lastAdmin, owned.Select(group => new OwnedGroupDeletionDto(group.GroupId, group.GroupName,
             candidates.Where(candidate => candidate.SportsGroupId == group.GroupId).Select(candidate => candidate.Candidate).ToList())).ToList());
     }

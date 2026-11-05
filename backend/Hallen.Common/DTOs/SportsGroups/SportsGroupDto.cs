@@ -15,4 +15,6 @@ public class SportsGroupDto
     public bool CanManage { get; set; }
 
     public bool IsOwner { get; set; }
+
+    public bool IsCreatedByCurrentUser { get; set; }
 }

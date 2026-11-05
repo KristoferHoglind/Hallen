@@ -1,3 +1,4 @@
+using Hallen.Common.Privacy;
 using System.ComponentModel.DataAnnotations;
 using Hallen.Application;
 using Hallen.Common.DTOs.Auth;
@@ -26,7 +27,7 @@ public class AccountsController(HallenDbContext db, InvitationService invitation
     {
         if (!await IsAdmin(User.GetUserId())) return Forbid();
         return Ok(await db.Users.AsNoTracking().OrderBy(user => user.DisplayName).ThenBy(user => user.Email)
-            .Select(user => new { user.Id, user.DisplayName, user.Email, user.IsSysAdmin, user.CanCreateGroups,
+            .Select(user => new { user.Id, user.DisplayName, Email = EmailPrivacy.Mask(user.Email), user.IsSysAdmin, user.CanCreateGroups,
                 active = user.Status == UserAccountStatus.Active,
                 memberships = user.SportsGroupMemberships.OrderBy(member => member.SportsGroup.Name)
                     .Select(member => new { groupId = member.SportsGroupId, groupName = member.SportsGroup.Name,

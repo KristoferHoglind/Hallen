@@ -88,9 +88,15 @@ export function SecurityPage() {
     }
   }
   return (
-    <section style={{ maxWidth: 680 }}>
-      <h1 className="page-title">Kontosäkerhet</h1>
-      <h2 className="h5 mt-4">Tvåfaktorsinloggning</h2>
+    <section
+      id="kontosakerhet"
+      aria-labelledby="securityTitle"
+      className="profile-section"
+    >
+      <h2 id="securityTitle" className="h4">
+        Kontosäkerhet
+      </h2>
+      <h3 className="h5 mt-3">Tvåfaktorsinloggning</h3>
       <p className="text-muted">
         Skydda kontot med en engångskod från en autentiseringsapp, exempelvis
         Microsoft Authenticator eller Google Authenticator, utöver ditt

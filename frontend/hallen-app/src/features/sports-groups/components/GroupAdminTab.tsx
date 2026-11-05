@@ -7,6 +7,7 @@ type GroupAdminTabProps = {
   initialGroupTab: "players" | "members" | "results" | "statistics";
   onGroupPermissionsChanged: (groupId: string) => Promise<void>;
   canCreateGroups: boolean;
+  createDisabled: boolean;
   sportsGroups: SportsGroup[];
   selectedSportsGroup: SportsGroup | null;
   isLoading: boolean;
@@ -23,6 +24,7 @@ export function GroupAdminTab({
   initialGroupTab,
   onGroupPermissionsChanged,
   canCreateGroups,
+  createDisabled,
   sportsGroups,
   selectedSportsGroup,
   isLoading,
@@ -51,14 +53,15 @@ export function GroupAdminTab({
         <Button
           className="mt-3"
           onClick={onOpenCreateSportsGroup}
-          disabled={isSaving}
+          disabled={isSaving || createDisabled}
         >
           Skapa ny spelargrupp
         </Button>
       ) : (
         <p className="text-muted mt-3">
-          Ditt konto saknar behörighet att skapa nya grupper. Kontakta en
-          systemadministratör om du behöver den.
+          Ditt konto saknar behörighet att skapa nya grupper. Det gäller även om
+          du äger en befintlig grupp. Kontakta en systemadministratör om du vill
+          kunna skapa grupper.
         </p>
       )}
     </div>

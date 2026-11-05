@@ -7,7 +7,7 @@ import { API_BASE_URL } from "../../config/api";
 type Account = {
   id: string;
   displayName: string;
-  email: string;
+  email?: string;
   active: boolean;
 };
 async function call<T>(path: string, body?: unknown): Promise<T> {
@@ -120,8 +120,12 @@ export function PasswordRecoveryAdmin({
       {targetAccount ? (
         <p className="mb-3">
           <strong>{targetAccount.displayName}</strong>
-          <br />
-          <span className="text-muted">{targetAccount.email}</span>
+          {targetAccount.email && (
+            <>
+              <br />
+              <span className="text-muted">{targetAccount.email}</span>
+            </>
+          )}
         </p>
       ) : (
         <Form.Group controlId="recoveryAccount" className="mb-3">
@@ -140,7 +144,8 @@ export function PasswordRecoveryAdmin({
               .filter((account) => account.active)
               .map((account) => (
                 <option key={account.id} value={account.id}>
-                  {account.displayName} – {account.email}
+                  {account.displayName}
+                  {account.email && ` – ${account.email}`}
                 </option>
               ))}
           </Form.Select>
@@ -158,7 +163,7 @@ export function PasswordRecoveryAdmin({
             Återställningslänk för{" "}
             {
               availableAccounts.find((account) => account.id === selected)
-                ?.email
+                ?.displayName
             }
           </Form.Label>
           <Form.Control

@@ -51,6 +51,10 @@ export async function createSportsGroup(
   });
 
   if (!response.ok) {
+    if (response.status === 409) {
+      const error = await response.json();
+      throw new Error(error.message);
+    }
     throw new Error("Kunde inte skapa grupp.");
   }
 
@@ -84,4 +88,22 @@ export async function deleteSportsGroup(id: string): Promise<void> {
   if (!response.ok) {
     throw new Error("Kunde inte ta bort grupp.");
   }
+}
+
+export type GroupCreationQuota = {
+  createdCount: number;
+  limit: number | null;
+  remaining: number | null;
+  canCreate: boolean;
+};
+
+export async function getGroupCreationQuota(): Promise<GroupCreationQuota> {
+  const response = await apiFetch(
+    `${API_BASE_URL}/api/sports-groups/creation-quota`,
+    {
+      credentials: "include",
+    },
+  );
+  if (!response.ok) throw new Error("Kunde inte hämta gruppgränsen.");
+  return response.json();
 }

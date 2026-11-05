@@ -1,7 +1,7 @@
-import { SecurityPage } from "./features/security/SecurityPage";
+import { ProfilePage } from "./features/profile/ProfilePage";
 import { ReleaseNotes } from "./features/release-notes/ReleaseNotes";
 import { HomePage } from "./features/home/HomePage";
-import { AccountsPage } from "./features/accounts/AccountsPage";
+import { SystemAdministrationPage } from "./features/system-administration/SystemAdministrationPage";
 import { ResetPasswordPage } from "./features/password-recovery/PasswordRecovery";
 import { Container, Spinner, Navbar, Nav, Button } from "react-bootstrap";
 import {
@@ -112,19 +112,29 @@ function App() {
               Mina grupper
             </Nav.Link>
             {currentUser?.isSysAdmin && (
-              <Nav.Link as={NavLink} to="/konton" eventKey="/konton">
-                Konton och lösenord
+              <Nav.Link
+                as={NavLink}
+                to="/systemadministration"
+                eventKey="/systemadministration"
+              >
+                Systemadministration
               </Nav.Link>
             )}
-            <Nav.Link as={NavLink} to="/sakerhet" eventKey="/sakerhet">
-              Kontosäkerhet
-            </Nav.Link>
             {currentUser && (
               <ReleaseNotes key={currentUser.id} userId={currentUser.id} />
             )}
           </Nav>
-          <div className="navigation-account">
-            <span className="text-muted small">{currentUser?.displayName}</span>
+          <Nav className="navigation-account flex-row">
+            <Nav.Link
+              as={NavLink}
+              to="/profil"
+              eventKey="/profil"
+              className="profile-link"
+              aria-label={`Min profil, ${currentUser?.displayName}`}
+            >
+              <i className="bi bi-person-circle" aria-hidden="true" />
+              {currentUser?.displayName}
+            </Nav.Link>
             <Button
               variant="link"
               size="sm"
@@ -133,7 +143,7 @@ function App() {
             >
               Logga ut
             </Button>
-          </div>
+          </Nav>
         </Navbar.Collapse>
       </Navbar>
 
@@ -150,16 +160,34 @@ function App() {
         />
         {currentUser?.isSysAdmin && (
           <Route
-            path="/konton"
+            path="/systemadministration/*"
             element={
-              <AccountsPage
+              <SystemAdministrationPage
                 currentUserId={currentUser.id}
                 onPermissionsChanged={refreshCurrentUser}
               />
             }
           />
         )}
-        <Route path="/sakerhet" element={<SecurityPage />} />
+        <Route
+          path="/konton"
+          element={<Navigate to="/systemadministration" replace />}
+        />
+        <Route
+          path="/profil"
+          element={
+            currentUser && (
+              <ProfilePage
+                currentUser={currentUser}
+                onProfileChanged={refreshCurrentUser}
+              />
+            )
+          }
+        />
+        <Route
+          path="/sakerhet"
+          element={<Navigate to="/profil#kontosakerhet" replace />}
+        />
         <Route path="/spela" element={<PlayPage />} />
         <Route
           path="/grupper"
