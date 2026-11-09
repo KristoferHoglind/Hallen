@@ -61,7 +61,7 @@ public class PlayerStatisticsController(HallenDbContext db, ISportsGroupAuthoriz
         return Ok(stats.Values.OrderBy(x => x.Name).ThenBy(x => x.PlayerId).Select(x => new {
             x.PlayerId, x.Name, x.Matches, x.Wins, x.Draws, x.Losses,
             Form = x.Form.TakeLast(20),
-            Partners = x.Partners.Values.OrderByDescending(p => p.Matches >= 5).ThenByDescending(p => (double)p.Wins / p.Matches).ThenByDescending(p => p.Matches).ThenBy(p => p.Name)
+            Partners = x.Partners.Values.OrderByDescending(p => p.Matches >= 5).ThenByDescending(p => p.Matches > p.Draws ? (double)p.Wins / (p.Matches - p.Draws) : 0).ThenByDescending(p => p.Matches).ThenBy(p => p.Name)
         }));
     }
 }

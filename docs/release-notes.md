@@ -20,5 +20,5 @@ under det pågående besöket. Andra öppna flikar uppdateras via storage-hände
 
 En deploy utan ett nytt release-ID visar inte redan lästa nyheter igen. Ändra
 inte ID på en publicerad post för små språkrättningar. Ge verkligt nya nyheter
-en ny post och ett nytt ID. Äldre poster behålls i filen; dialogen visar den
-senaste releasen, även om användaren har missat flera releaser.
+en ny post och ett nytt ID. Dialogen öppnas på den senaste posten. Äldre poster
+går att välja under ”Tidigare nyhetsbrev” längst ned i dialogen.

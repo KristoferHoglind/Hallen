@@ -53,6 +53,33 @@ const sessionFeatureChanges = [
 
 export const releases = [
   {
+    id: "2026-11-09-player-statistics",
+    date: "2026-11-09",
+    title: "Mer spelarsnack och tydligare statistik",
+    introduction:
+      "Vem är kvällens segermagnet, och vem vinner du oftast med? Nu är det lättare att hitta svaren i Hallen.",
+    changes: [
+      {
+        icon: "bi-chat-quote",
+        title: "Spelarna tar plats i Snacket vid sidlinjen",
+        description:
+          "I sessioner med två lag lyfter snacket fram spelare som samlat vinster, hållit nollan med sitt lag eller fått jubla efter uddamålssegrar. Anekdoterna följer vilka som spelade i varje match, även när lagen lottas om. Vid delat toppresultat kan en av spelarna lottas fram.",
+      },
+      {
+        icon: "bi-percent",
+        title: "Vinstprocenten räknas på avgjorda matcher",
+        description:
+          "Vinstprocenten visar hur stor andel av de avgjorda matcherna du har vunnit. Det gäller i gruppstatistiken, formkurvan och rankningen av radarpartners. Tryck på informationsikonen vid vinstprocenten för att se hur den räknas ut.",
+      },
+      {
+        icon: "bi-arrow-down-up",
+        title: "Sortera dina radarpartners",
+        description:
+          "Klicka på en kolumnrubrik för att sortera lagkamrater efter namn, gemensamma matcher, vinster eller vinstprocent. Klicka igen för att byta riktning.",
+      },
+    ],
+  },
+  {
     id: "2026-11-05-profile-and-administration",
     date: "2026-11-05",
     title: "Din profil och bättre gruppadministration",
@@ -124,14 +151,6 @@ export const releases = [
           "Dela resultat visar nu spelarna under respektive lag och poäng i varje match. Uppställningen hämtas från den sparade matchen, så senare lagbyten påverkar inte vilka spelare som visas. Längre spelarlistor radbryts automatiskt.",
       },
     ],
-  },
-  {
-    id: "2026-11-02",
-    date: "2026-11-02",
-    title: "Mer spel, mindre fix!",
-    introduction:
-      "Hallen har fått flera nyheter som gör det enklare att ordna spelsessioner, följa resultaten och hitta era bästa radarpartners.",
-    changes: sessionFeatureChanges,
   },
 ];
 

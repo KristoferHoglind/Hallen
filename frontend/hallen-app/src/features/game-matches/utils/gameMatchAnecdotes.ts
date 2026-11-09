@@ -34,6 +34,97 @@ function resultRandom(matches: GameMatch[], standings: TeamStanding[]) {
   };
 }
 
+function buildPlayerAnecdotes(matches: GameMatch[], random: () => number) {
+  const stats = new Map<
+    string,
+    {
+      name: string;
+      games: number;
+      wins: number;
+      cleanSheets: number;
+      closeWins: number;
+    }
+  >();
+
+  for (const { teamResults, winnerGameTeamId } of matches) {
+    if (teamResults.length !== 2) continue;
+    const [first, second] = teamResults;
+    for (const [team, opponent] of [
+      [first, second],
+      [second, first],
+    ]) {
+      const won = winnerGameTeamId
+        ? winnerGameTeamId === team.gameTeamId
+        : team.score > opponent.score;
+      for (const { playerId, playerName } of team.players ?? []) {
+        const player = stats.get(playerId) ?? {
+          name: playerName,
+          games: 0,
+          wins: 0,
+          cleanSheets: 0,
+          closeWins: 0,
+        };
+        player.games++;
+        if (won) player.wins++;
+        if (opponent.score === 0) player.cleanSheets++;
+        if (won && team.score - opponent.score === 1) player.closeWins++;
+        stats.set(playerId, player);
+      }
+    }
+  }
+
+  const players = [...stats.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, player]) => player);
+  const anecdotes: string[] = [];
+  const pick = <T>(options: T[]) =>
+    options[Math.floor(random() * options.length)];
+  const featured = new Set<(typeof players)[number]>();
+
+  function spotlight(
+    stat: "games" | "wins" | "cleanSheets" | "closeWins",
+    minimum: number,
+    lines: (name: string, count: number) => string[],
+  ) {
+    const best = Math.max(0, ...players.map((player) => player[stat]));
+    if (best < minimum) return;
+    const tied = players.filter((player) => player[stat] === best);
+    const fresh = tied.filter((player) => !featured.has(player));
+    const player = pick(fresh.length ? fresh : tied);
+    featured.add(player);
+    anecdotes.push(pick(lines(player.name, best)));
+  }
+
+  spotlight("wins", 1, (name, wins) => [
+    `Kvällens segermagnet: ${name}! ${winsLabel(wins)} i bagaget. Ryktet säger att nästa laglottning redan är överklagad.`,
+    `${name} spelade hem ${winsLabel(wins)}. Någon har tydligen tagit med sig en egen turmaskot till hallen!`,
+    `${name} fick fira ${winsLabel(wins)}. Vid det här laget borde segerdansen räknas som uppvärmning.`,
+  ]);
+  spotlight("cleanSheets", 1, (name, count) => [
+    `Kvällens låssmed: ${name}! ${count === 1 ? "En hållen nolla" : `${count} hållna nollor`} med sitt lag. Vem gömde nyckeln till målet?`,
+    `${name} var med och höll nollan ${count === 1 ? "i en match" : `i ${count} matcher`}. Har någon tjuvövat på att stänga butiken?`,
+  ]);
+  spotlight("closeWins", 1, (name, count) => [
+    `${name} fick jubla efter ${count === 1 ? "en uddamålsseger" : `${count} uddamålssegrar`}. Någon får gärna kolla hur sidlinjens pulsklocka mår.`,
+    `${name} var med och vann ${count === 1 ? "en match" : `${count} matcher`} med ett enda måls marginal. Var all den där dramatiken verkligen nödvändig?`,
+  ]);
+  spotlight("games", 1, (name, count) => [
+    `${name} klockade in på ${count === 1 ? "en match" : `${count} matcher`}. Stämpelklockan i hallen hälsar och tackar.`,
+    `${name} tog plats på planen i ${count === 1 ? "en match" : `${count} matcher`}. Vattenflaskan fick åtminstone följa med som reserv.`,
+  ]);
+
+  if (anecdotes.length === 0) {
+    anecdotes.push(
+      pick([
+        "Matchprotokollet har koll på siffrorna. Resten får vi höra i omklädningsrummet!",
+        "Sekretariatet har sparat resultatet. Vem som stod för kvällens snyggaste fint får sidlinjen debattera vidare.",
+      ]),
+    );
+  }
+
+  return anecdotes;
+}
+
 export function buildGameMatchAnecdotes(
   matches: GameMatch[],
   standings: TeamStanding[],
@@ -41,6 +132,7 @@ export function buildGameMatchAnecdotes(
   const played = standings.filter((team) => team.gamesPlayed > 0);
   if (matches.length === 0 || played.length === 0) return [];
   const random = resultRandom(matches, standings);
+  if (standings.length === 2) return buildPlayerAnecdotes(matches, random);
   const pick = (options: string[]) =>
     options[Math.floor(random() * options.length)];
   const candidates: string[] = [];

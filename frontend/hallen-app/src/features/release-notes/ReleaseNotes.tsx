@@ -1,15 +1,25 @@
 import { useId, useState, useSyncExternalStore } from "react";
-import { Button, Modal, Nav } from "react-bootstrap";
-import { latestRelease } from "./releases";
+import { Button, Form, Modal, Nav } from "react-bootstrap";
+import { latestRelease, releases } from "./releases";
 import {
   hasSeenRelease,
   markReleaseSeen,
   subscribeToReleaseNotes,
 } from "./releaseNotesStorage";
 
+const dateFormatter = new Intl.DateTimeFormat("sv-SE", {
+  dateStyle: "long",
+  timeZone: "Europe/Stockholm",
+});
+const formatDate = (date: string) =>
+  dateFormatter.format(new Date(`${date}T12:00:00Z`));
+
 export function ReleaseNotes({ userId }: { userId: string }) {
   const titleId = useId();
+  const historyId = useId();
   const [manuallyOpened, setManuallyOpened] = useState(false);
+  const [releaseId, setReleaseId] = useState(latestRelease.id);
+  const release = releases.find(({ id }) => id === releaseId) ?? latestRelease;
   const hasSeen = useSyncExternalStore(
     subscribeToReleaseNotes,
     () => hasSeenRelease(userId, latestRelease.id),
@@ -19,11 +29,6 @@ export function ReleaseNotes({ userId }: { userId: string }) {
     markReleaseSeen(userId, latestRelease.id);
     setManuallyOpened(false);
   }
-  const releaseDate = new Intl.DateTimeFormat("sv-SE", {
-    dateStyle: "long",
-    timeZone: "Europe/Stockholm",
-  }).format(new Date(`${latestRelease.date}T12:00:00Z`));
-
   return (
     <>
       <Nav.Link
@@ -32,7 +37,10 @@ export function ReleaseNotes({ userId }: { userId: string }) {
         eventKey="release-notes"
         className="text-start"
         active={false}
-        onClick={() => setManuallyOpened(true)}
+        onClick={() => {
+          setReleaseId(latestRelease.id);
+          setManuallyOpened(true);
+        }}
       >
         Nytt i Hallen
       </Nav.Link>
@@ -56,13 +64,13 @@ export function ReleaseNotes({ userId }: { userId: string }) {
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <time className="small text-muted" dateTime={latestRelease.date}>
-            {releaseDate}
+          <time className="small text-muted" dateTime={release.date}>
+            {formatDate(release.date)}
           </time>
-          <h3 className="h5 mt-2">{latestRelease.title}</h3>
-          <p className="text-muted mb-4">{latestRelease.introduction}</p>
+          <h3 className="h5 mt-2">{release.title}</h3>
+          <p className="text-muted mb-4">{release.introduction}</p>
           <ul className="list-unstyled mb-0">
-            {latestRelease.changes.map((change) => (
+            {release.changes.map((change) => (
               <li key={change.title} className="d-flex gap-3 mb-4">
                 <i
                   className={`bi ${change.icon} text-primary fs-5 flex-shrink-0`}
@@ -76,11 +84,31 @@ export function ReleaseNotes({ userId }: { userId: string }) {
             ))}
           </ul>
         </Modal.Body>
-        <Modal.Footer className="justify-content-between gap-2">
-          <span className="small text-muted">
-            Du hittar alltid nyheterna i menyn.
-          </span>
-          <Button onClick={close}>Nu kör vi!</Button>
+        <Modal.Footer className="align-items-end justify-content-between gap-2 bg-body-tertiary">
+          {releases.length > 1 && (
+            <Form.Group controlId={historyId} className="release-notes-history">
+              <Form.Label className="small fw-semibold mb-1">
+                <i className="bi bi-clock-history me-2" aria-hidden="true" />
+                Tidigare nyhetsbrev
+              </Form.Label>
+              <Form.Select
+                className="rounded-3 text-truncate"
+                value={release.id}
+                onChange={(event) => setReleaseId(event.currentTarget.value)}
+              >
+                {releases.map(({ id, date, title }) => (
+                  <option key={id} value={id}>
+                    {id === latestRelease.id
+                      ? `Senaste nyhetsbrevet · ${formatDate(date)}`
+                      : `${formatDate(date)} · ${title}`}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+          )}
+          <Button className="ms-auto" onClick={close}>
+            Nu kör vi!
+          </Button>
         </Modal.Footer>
       </Modal>
     </>

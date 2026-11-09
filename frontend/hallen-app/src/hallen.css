@@ -60,6 +60,11 @@ body {
   --bs-btn-disabled-bg: #17614c;
   --bs-btn-disabled-border-color: #17614c;
 }
+.release-notes-history {
+  flex: 1 1 18rem;
+  min-width: 0;
+  max-width: 27rem;
+}
 .hallen-app .btn-link {
   text-decoration: none;
 }

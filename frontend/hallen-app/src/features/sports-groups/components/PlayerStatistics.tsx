@@ -2,6 +2,9 @@ import { apiFetch } from "../../../shared/api/apiFetch";
 import { useEffect, useState } from "react";
 import { Alert, Badge, Form, Spinner, Table } from "react-bootstrap";
 import { API_BASE_URL } from "../../../config/api";
+import { winRate } from "../winRate";
+import { SortableColumnHeader } from "./SortableColumnHeader";
+import { WinRateTooltip } from "./WinRateTooltip";
 
 type Partner = {
   playerId: string;
@@ -27,8 +30,8 @@ type Stats = {
   form: Outcome[];
   partners: Partner[];
 };
-const percent = (wins: number, matches: number) =>
-  matches ? Math.round((wins / matches) * 100) : 0;
+const percent = (stats: Parameters<typeof winRate>[0]) =>
+  Math.round(winRate(stats) * 100);
 const date = (value: string) =>
   new Intl.DateTimeFormat("sv-SE", {
     dateStyle: "medium",
@@ -124,49 +127,21 @@ function PlayerDetails({ player }: { player: Stats }) {
   const developing = player.partners.filter((p) => p.matches < 5);
   const best = qualified[0];
   const bestPartners = best
-    ? qualified.filter((p) => p.wins / p.matches === best.wins / best.matches)
+    ? qualified.filter((p) => winRate(p) === winRate(best))
     : [];
   const form = player.form;
   const points = form.map((_, i) => {
     const window = form.slice(Math.max(0, i - 4), i + 1);
+    const winPercent = percent({
+      wins: window.filter((m) => m.outcome === "V").length,
+      matches: window.length,
+      draws: window.filter((m) => m.outcome === "O").length,
+    });
     return {
       x: form.length === 1 ? 300 : 35 + i * (530 / (form.length - 1)),
-      y:
-        145 -
-        percent(window.filter((m) => m.outcome === "V").length, window.length) *
-          1.2,
+      y: 145 - winPercent * 1.2,
     };
   });
-  function partnersTable(rows: Partner[]) {
-    return (
-      <Table responsive size="sm">
-        <thead>
-          <tr>
-            <th scope="col">Lagkamrat</th>
-            <th scope="col" aria-label="Matcher ihop">
-              Matcher
-            </th>
-            <th scope="col" aria-label="Vinster ihop">
-              Vinster
-            </th>
-            <th scope="col" aria-label="Vinstprocent tillsammans">
-              Vinst %
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((p) => (
-            <tr key={p.playerId}>
-              <td>{p.name}</td>
-              <td>{p.matches}</td>
-              <td>{p.wins}</td>
-              <td>{percent(p.wins, p.matches)} %</td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
-    );
-  }
   return (
     <>
       <h4 className="h5">{player.name}</h4>
@@ -176,11 +151,14 @@ function PlayerDetails({ player }: { player: Stats }) {
           ["Vinster", player.wins],
           ["Oavgjorda", player.draws],
           ["Förluster", player.losses],
-          ["Vinstprocent", `${percent(player.wins, player.matches)} %`],
+          ["Vinstprocent", `${percent(player)} %`],
         ].map(([label, value]) => (
           <div key={label}>
             <div className="h4 mb-0">{value}</div>
-            <span className="small text-muted">{label}</span>
+            <span className="small text-muted">
+              {label}
+              {label === "Vinstprocent" && <WinRateTooltip />}
+            </span>
           </div>
         ))}
       </div>
@@ -273,12 +251,12 @@ function PlayerDetails({ player }: { player: Stats }) {
       {best && (
         <p className="text-success">
           {bestPartners.length === 1
-            ? `Du och ${best.name} har vunnit ${best.wins} av ${best.matches} matcher tillsammans (${percent(best.wins, best.matches)} %). Motståndarna är härmed varnade!`
-            : `Dina bästa radarpartners är ${bestPartners.map((p) => p.name).join(", ")} – med ${percent(best.wins, best.matches)} % vinster tillsammans!`}
+            ? `Du och ${best.name} har ${percent(best)} % i vinstprocent tillsammans. Motståndarna är härmed varnade!`
+            : `Dina bästa radarpartners är ${bestPartners.map((p) => p.name).join(", ")} – med ${percent(best)} % vinster tillsammans!`}
         </p>
       )}
       {qualified.length ? (
-        partnersTable(qualified)
+        <PartnersTable rows={qualified} />
       ) : (
         <p className="text-muted">
           Ingen lagkamrat har fem gemensamma matcher med dig ännu.
@@ -290,7 +268,7 @@ function PlayerDetails({ player }: { player: Stats }) {
           <p className="small text-muted">
             Färre än fem matcher ihop – lite tidigt att utse drömduon!
           </p>
-          {partnersTable(developing)}
+          <PartnersTable rows={developing} />
         </>
       )}
       {!player.partners.length && (
@@ -299,5 +277,78 @@ function PlayerDetails({ player }: { player: Stats }) {
         </p>
       )}
     </>
+  );
+}
+
+const partnerColumns = [
+  { key: "name", label: "Lagkamrat" },
+  { key: "matches", label: "Matcher" },
+  { key: "wins", label: "Vinster" },
+  { key: "winPercentage", label: "Vinst %" },
+] as const;
+
+type PartnerSortKey = (typeof partnerColumns)[number]["key"];
+
+function PartnersTable({ rows }: { rows: Partner[] }) {
+  const [sort, setSort] = useState<{
+    key: PartnerSortKey;
+    direction: "ascending" | "descending";
+  }>({ key: "winPercentage", direction: "descending" });
+
+  function sortBy(key: PartnerSortKey) {
+    setSort((current) => ({
+      key,
+      direction:
+        key === current.key
+          ? current.direction === "ascending"
+            ? "descending"
+            : "ascending"
+          : key === "name"
+            ? "ascending"
+            : "descending",
+    }));
+  }
+
+  const sortedRows = [...rows].sort((a, b) => {
+    const comparison =
+      sort.key === "name"
+        ? a.name.localeCompare(b.name, "sv-SE")
+        : sort.key === "winPercentage"
+          ? winRate(a) - winRate(b)
+          : a[sort.key] - b[sort.key];
+
+    return (
+      comparison * (sort.direction === "ascending" ? 1 : -1) ||
+      b.matches - a.matches
+    );
+  });
+
+  return (
+    <Table responsive size="sm">
+      <thead>
+        <tr>
+          {partnerColumns.map(({ key, label }) => (
+            <SortableColumnHeader
+              key={key}
+              label={label}
+              direction={sort.key === key ? sort.direction : undefined}
+              onSort={() => sortBy(key)}
+            >
+              {key === "winPercentage" && <WinRateTooltip />}
+            </SortableColumnHeader>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {sortedRows.map((partner) => (
+          <tr key={partner.playerId}>
+            <td>{partner.name}</td>
+            <td>{partner.matches}</td>
+            <td>{partner.wins}</td>
+            <td>{percent(partner)} %</td>
+          </tr>
+        ))}
+      </tbody>
+    </Table>
   );
 }

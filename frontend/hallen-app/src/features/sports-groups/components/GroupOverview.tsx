@@ -3,6 +3,9 @@ import { useEffect, useState } from "react";
 import { Alert, Button, Form, Modal, Spinner, Table } from "react-bootstrap";
 import { API_BASE_URL } from "../../../config/api";
 import { getSportsGroup } from "../api/sportsGroupsApi";
+import { winRate } from "../winRate";
+import { SortableColumnHeader } from "./SortableColumnHeader";
+import { WinRateTooltip } from "./WinRateTooltip";
 
 type MatchRecord = {
   matchName: string;
@@ -29,8 +32,6 @@ const playerColumns: { key: PlayerSortKey; label: string }[] = [
   { key: "draws", label: "Oavgjorda" },
   { key: "losses", label: "Förluster" },
 ];
-const winPercentage = (player: PlayerStats) =>
-  player.matches > 0 ? player.wins / player.matches : 0;
 
 type Statistics = {
   sessions: number;
@@ -371,7 +372,7 @@ function GroupStatisticsResults({
       sortKey === "playerName"
         ? a.playerName.localeCompare(b.playerName, "sv-SE")
         : sortKey === "winPercentage"
-          ? winPercentage(a) - winPercentage(b)
+          ? winRate(a) - winRate(b)
           : a[sortKey] - b[sortKey];
     return (
       comparison * (sortDirection === "ascending" ? 1 : -1) ||
@@ -487,33 +488,20 @@ function GroupStatisticsResults({
           <p className="small text-muted">
             Alla gruppens spelare visas, även de som ännu inte spelat någon
             match. Klicka på en kolumnrubrik för att sortera och klicka igen för
-            att byta riktning. Vinstprocent är vinster delat med spelade
-            matcher. En utsedd vinnare räknas även vid lika poäng.
+            att byta riktning. En utsedd vinnare räknas även vid lika poäng.
           </p>
           <Table responsive size="sm">
             <thead>
               <tr>
                 {playerColumns.map((column) => (
-                  <th
+                  <SortableColumnHeader
                     key={column.key}
-                    scope="col"
-                    aria-sort={
-                      sortKey === column.key ? sortDirection : undefined
-                    }
+                    label={column.label}
+                    direction={sortKey === column.key ? sortDirection : undefined}
+                    onSort={() => sortBy(column.key)}
                   >
-                    <Button
-                      variant="link"
-                      className="p-0 text-reset fw-semibold text-decoration-none text-nowrap"
-                      onClick={() => sortBy(column.key)}
-                      aria-label={`Sortera efter ${column.label.toLocaleLowerCase("sv-SE")}`}
-                    >
-                      {column.label}
-                      <i
-                        className={`bi ${sortKey === column.key ? (sortDirection === "ascending" ? "bi-arrow-up" : "bi-arrow-down") : "bi-arrow-down-up"} ms-2`}
-                        aria-hidden="true"
-                      />
-                    </Button>
-                  </th>
+                    {column.key === "winPercentage" && <WinRateTooltip />}
+                  </SortableColumnHeader>
                 ))}
               </tr>
             </thead>
@@ -524,10 +512,7 @@ function GroupStatisticsResults({
                   <td>{player.matches}</td>
                   <td>{player.wins}</td>
                   <td className="text-nowrap">
-                    {(player.matches > 0
-                      ? player.wins / player.matches
-                      : 0
-                    ).toLocaleString("sv-SE", {
+                    {winRate(player).toLocaleString("sv-SE", {
                       style: "percent",
                       maximumFractionDigits: 1,
                     })}
